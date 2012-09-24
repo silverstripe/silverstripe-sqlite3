@@ -1,0 +1,16 @@
+{
+	"name": "silverstripe-labs/sqlite3",
+	"description": "SQLite3 Module for SilverStripe.",
+	"type": "silverstripe-module",
+	"keywords": ["silverstripe-labs", "sqlite3", "database"],
+	"authors": [
+	{
+		"name": "Andreas Piening",
+		"email": "andreas@silverstripe.com"
+	}
+	],
+	"require":
+	{
+		"silverstripe/framework": "3.*"
+	}
+}
