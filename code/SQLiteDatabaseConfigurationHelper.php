@@ -202,4 +202,15 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 	public static function secure_db_dir($path) {
 		return (is_writeable($path)) ? file_put_contents($path . '/.htaccess', 'deny from all') : false;
 	}
+	
+	/**
+	 * Ensure we have permissions to alter tables.
+	 * 
+	 * @param array $databaseConfig Associative array of db configuration, e.g. "server", "username" etc
+	 * @return array Result - e.g. array('okay' => true, 'applies' => true), where applies is whether
+	 * the test is relevant for the database
+	 */
+	public function requireDatabaseAlterPermissions($databaseConfig) {
+		return array('success' => true, 'applies' => false);	
+	}
 }
