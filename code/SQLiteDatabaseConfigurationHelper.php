@@ -1,51 +1,84 @@
 <?php
+
 /**
  * This is a helper class for the SS installer.
  * 
  * It does all the specific checking for SQLiteDatabase
  * to ensure that the configuration is setup correctly.
  * 
- * @package sqlite3
+ * @package SQLite3
  */
 class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
-
+	
 	/**
-	 * Ensure that one of the database classes
-	 * is available. If it is, we assume the PHP module for this
-	 * database has been setup correctly.
+	 * Create a connection of the appropriate type
 	 * 
-	 * @param array $databaseConfig Associative array of database configuration, e.g. "type", "path" etc
-	 * @return boolean
+	 * @param array $databaseConfig
+	 * @param string $error Error message passed by value
+	 * @return mixed|null Either the connection object, or null if error
 	 */
+	protected function createConnection($databaseConfig, &$error) {
+		$error = null;
+		try {
+			if(!file_exists($databaseConfig['path'])) {
+				self::create_db_dir($databaseConfig['path']);
+				self::secure_db_dir($databaseConfig['path']);
+			}
+			$file = $databaseConfig['path'] . '/' . $databaseConfig['database'];
+			$conn = null;
+		
+			switch($databaseConfig['type']) {
+				case 'SQLite3Database':
+					if(empty($databaseConfig['key'])) {
+						$conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
+					} else {
+						$conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $databaseConfig['key']);
+					}
+					break;
+				case 'SQLite3PDODatabase':
+					// May throw a PDOException if fails
+					$conn = @new PDO("sqlite:$file");
+					break;
+				default:
+					$error = 'Invalid connection type';
+					return null;
+			}
+			
+			if($conn) {
+				return $conn;
+			} else {
+				$error = 'Unknown connection error';
+				return null;
+			}
+		} catch(Exception $ex) {
+			$error = $ex->getMessage();
+			return null;
+		}
+	}
+	
 	public function requireDatabaseFunctions($databaseConfig) {
-		if($databaseConfig['type'] == 'SQLitePDODatabase' || version_compare(phpversion(), '5.3.0', '<')) return class_exists('PDO') ? true : false;
-		return class_exists('SQLite3');
+		$data = DatabaseAdapterRegistry::get_adapter($databaseConfig['type']);
+		return !empty($data['supported']);
 	}
 
-	/**
-	 * Ensure that the database server exists.
-	 * @param array $databaseConfig Associative array of db configuration, e.g. "type", "path" etc
-	 * @return array Result - e.g. array('success' => true, 'error' => 'details of error')
-	 */
 	public function requireDatabaseServer($databaseConfig) {
 		$path = $databaseConfig['path'];
 		$error = '';
+		$success = false;
 
 		if(!$path) {
-			$success = false;
 			$error = 'No database path provided';
-		}
-		// check if parent folder is writeable
-		elseif(is_writable(dirname($path))) {
+		} elseif(is_writable($path) || (!file_exists($path) && is_writable(dirname($path)))) {
+			// check if folder is writeable
 			$success = true;
 		} else {
-			$success = false;
-			$error = 'Webserver can\'t write database file to path "' . $path . '"';
+			$error = "Permission denied";
 		}
 
 		return array(
 			'success' => $success,
-			'error' => $error
+			'error' => $error,
+			'path' => $path
 		);
 	}
 
@@ -58,22 +91,18 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 	 * @return array Result - e.g. array('success' => true, 'error' => 'details of error')
 	 */
 	public function requireDatabaseConnection($databaseConfig) {
-		$success = false;
-		$error = '';
-		
-		// arg validation
-		if(!isset($databaseConfig['path']) || !$databaseConfig['path']) return array(
+		// Do additional validation around file paths
+		if(empty($databaseConfig['path'])) return array(
 			'success' => false,
-			'error' => sprintf('Invalid path: "%s"', $databaseConfig['path'])
+			'error' => "Missing directory path"
 		);
+		if(empty($databaseConfig['database'])) return array(
+			'success' => false,
+			'error' => "Missing database filename"
+		);
+		
+		// Create and secure db directory
 		$path = $databaseConfig['path'];
-		
-		if(!isset($databaseConfig['database']) || !$databaseConfig['database']) return array(
-			'success' => false,
-			'error' => sprintf('Invalid database name: "%s"', $databaseConfig['database'])
-		);
-		
-		// create and secure db directory
 		$dirCreated = self::create_db_dir($path);
 		if(!$dirCreated) return array(
 			'success' => false,
@@ -85,21 +114,8 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 			'error' => sprintf('Cannot secure path through .htaccess: "%s"', $path)
 		);
 
-		$file = $path . '/' . $databaseConfig['database'];
-		$file = preg_replace('/\/$/', '', $file);
-
-		if($databaseConfig['type'] == 'SQLitePDODatabase' || version_compare(phpversion(), '5.3.0', '<')) {
-			$conn = @(new PDO("sqlite:$file"));
-		} else {
-			$conn = @(new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE));
-		}
-
-		if($conn) {
-			$success = true;
-		} else {
-			$success = false;
-			$error = '';
-		}
+		$conn = $this->createConnection($databaseConfig, $error);
+		$success = !empty($conn);
 		
 		return array(
 			'success' => $success,
@@ -110,21 +126,19 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 
 	public function getDatabaseVersion($databaseConfig) {
 		$version = 0;
-
-		if(class_exists('SQLite3')) {
-			$info = SQLite3::version();
-			if($info && isset($info['versionString'])) {
+		
+		switch($databaseConfig['type']) {
+			case 'SQLite3Database':
+				$info = SQLite3::version();
 				$version = trim($info['versionString']);
-			}
-		} else {
-			// Fallback to using sqlite_version() query
-			$file = $databaseConfig['path'] . '/' . $databaseConfig['database'];
-			$file = preg_replace('/\/$/', '', $file);
-			$conn = @(new PDO("sqlite:$file"));
-			if($conn) {
-				$result = @$conn->query('SELECT sqlite_version()');
-				$version = $result->fetchColumn();
-			}
+				break;
+			case 'SQLite3PDODatabase':
+				// Fallback to using sqlite_version() query
+				$conn = $this->createConnection($databaseConfig, $error);
+				if($conn) {
+					$version = $conn->getAttribute(PDO::ATTR_SERVER_VERSION);
+				}
+				break;
 		}
 
 		return $version;
@@ -148,29 +162,9 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 		);
 	}
 
-	/**
-	 * Ensure that the database connection is able to use an existing database,
-	 * or be able to create one if it doesn't exist.
-	 *
-	 * @param array $databaseConfig Associative array of db configuration, e.g. "server", "username" etc
-	 * @return array Result - e.g. array('success' => true, 'alreadyExists' => 'true')
-	 */
 	public function requireDatabaseOrCreatePermissions($databaseConfig) {
-		$success = false;
-		$alreadyExists = false;
-		$canCreate = false;
-		
-		$check = $this->requireDatabaseConnection($databaseConfig);
-		$conn = $check['connection'];
-		
-		if($conn) {
-			$success = true;
-			$alreadyExists = true;
-		} else {
-			$success = false;
-			$alreadyExists = false;
-		}
-
+		$conn = $this->createConnection($databaseConfig, $error);
+		$success = $alreadyExists = !empty($conn);
 		return array(
 			'success' => $success,
 			'alreadyExists' => $alreadyExists,
@@ -186,7 +180,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 	 * @return boolean
 	 */
 	public static function create_db_dir($path) {
-		return (!file_exists($path)) ? mkdir($path) : true;
+		return file_exists($path) || mkdir($path);
 	}
 	
 	/**
@@ -203,14 +197,11 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper {
 		return (is_writeable($path)) ? file_put_contents($path . '/.htaccess', 'deny from all') : false;
 	}
 	
-	/**
-	 * Ensure we have permissions to alter tables.
-	 * 
-	 * @param array $databaseConfig Associative array of db configuration, e.g. "server", "username" etc
-	 * @return array Result - e.g. array('okay' => true, 'applies' => true), where applies is whether
-	 * the test is relevant for the database
-	 */
 	public function requireDatabaseAlterPermissions($databaseConfig) {
-		return array('success' => true, 'applies' => false);	
+		// no concept of table-specific permissions; If you can connect you can alter schema
+		return array(
+			'success' => true,
+			'applies' => false
+		);
 	}
 }
