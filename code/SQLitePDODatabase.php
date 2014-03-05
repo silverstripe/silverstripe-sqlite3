@@ -13,6 +13,16 @@ class SQLitePDODatabase extends SQLite3Database {
 	function connectDatabase() {
 		$this->enum_map = array();
 		$parameters = $this->parameters;
+		
+		if(!empty($parameters['memory'])) {
+			Deprecation::notice(
+				'1.4.0',
+				"\$databaseConfig['memory'] is deprecated. Use \$databaseConfig['path'] = ':memory:' instead.",
+				Deprecation::SCOPE_GLOBAL
+			);
+			$parameters['path'] = ':memory:';
+		}
+		
 		$dbName = !isset($this->database) ? $parameters['database'] : $dbName=$this->database;
 		$file = $parameters['path'];
 

@@ -1,5 +1,7 @@
 <?php
 
+Deprecation::notification_version('1.3.0', 'sqlite3');
+
 $classes = array('SQLiteDatabase', 'SQLite3Database', 'SQLitePDODatabase');
 
 global $databaseConfig;

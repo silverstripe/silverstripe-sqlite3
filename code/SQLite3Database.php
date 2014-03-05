@@ -63,6 +63,16 @@ class SQLite3Database extends SS_Database {
 	function connectDatabase() {
 		$this->enum_map = array();
 		$parameters = $this->parameters;
+		
+		if(!empty($parameters['memory'])) {
+			Deprecation::notice(
+				'1.4.0',
+				"\$databaseConfig['memory'] is deprecated. Use \$databaseConfig['path'] = ':memory:' instead.",
+				Deprecation::SCOPE_GLOBAL
+			);
+			$parameters['path'] = ':memory:';
+		}
+		
 		$dbName = !isset($this->database) ? $parameters['database'] : $this->database;
 		$file = $parameters['path'];
 
