@@ -1,0 +1,4 @@
+SQLLite3Database:
+# Extension used to distinguish between sqllite database files and other files
+# Required to handle multiple databases
+  database_extension: '.sqlite'

@@ -1,0 +1,29 @@
+---
+name: sqlite3connectors
+---
+Injector:
+  SQLite3PDODatabase:
+    class: 'SQLite3Database'
+    properties:
+      connector: %$PDOConnector
+      schemaManager: %$SQLite3SchemaManager
+      queryBuilder: %$SQLite3QueryBuilder
+  SQLite3Database:
+    class: 'SQLite3Database'
+    properties:
+      connector: %$SQLite3Connector
+      schemaManager: %$SQLite3SchemaManager
+      queryBuilder: %$SQLite3QueryBuilder
+# Legacy connector names
+  SQLiteDatabase:
+    class: 'SQLite3Database'
+    properties:
+      connector: %$SQLite3Connector
+      schemaManager: %$SQLite3SchemaManager
+      queryBuilder: %$SQLite3QueryBuilder
+  SQLitePDODatabase:
+    class: 'SQLite3Database'
+    properties:
+      connector: %$SQLite3Connector
+      schemaManager: %$SQLite3SchemaManager
+      queryBuilder: %$SQLite3QueryBuilder
