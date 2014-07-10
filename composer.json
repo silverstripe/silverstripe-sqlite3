@@ -4,18 +4,21 @@
 	"type": "silverstripe-module",
 	"keywords": ["silverstripe", "sqlite3", "database"],
 	"authors": [
-	{
-		"name": "Ingo Schommer",
-		"email": "ingo@silverstripe.com"
-	},
-	{
-		"name": "Sean Harvey",
-		"email": "sean@silverstripe.com"
-	}
+		{
+			"name": "Ingo Schommer",
+			"email": "ingo@silverstripe.com"
+		},
+		{
+			"name": "Sean Harvey",
+			"email": "sean@silverstripe.com"
+		}
 	],
-
-	"require":
-	{
+	"require": {
 		"silverstripe/framework": "~3.2"
+	},
+	"extra": {
+		"branch-alias": {
+			"dev-master": "1.4.x-dev"
+		}
 	}
 }
