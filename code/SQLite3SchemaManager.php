@@ -507,6 +507,16 @@ class SQLite3SchemaManager extends DBSchemaManager {
 	}
 
 	/**
+	 * Return a bigint type-formatted string
+	 *
+	 * @params array $values Contains a tokenised list of info about this data type
+	 * @return string
+	 */
+	public function bigint($values, $asDbValue = false){
+		return $this->int($values, $asDbValue);
+	}
+
+	/**
 	 * Return a datetime type-formatted string
 	 * For SQLite3, we simply return the word 'TEXT', no other parameters are necessary
 	 * 
