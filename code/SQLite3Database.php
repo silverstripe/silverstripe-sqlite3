@@ -106,6 +106,12 @@ class SQLite3Database extends SS_Database {
 		return true;
 	}
 
+	public function __destruct() {
+		if($this->dbConn) {
+			$this->dbConn->close();
+		}
+	}
+
 	/**
 	 * Not implemented, needed for PDO
 	 */
@@ -1246,7 +1252,9 @@ class SQLite3Query extends SS_Query {
 	}
 
 	public function __destruct() {
-		if($this->handle) $this->handle->finalize();
+		if($this->handle) {
+			$this->handle->finalize();
+		}
 	}
 
 	public function seek($row) {
