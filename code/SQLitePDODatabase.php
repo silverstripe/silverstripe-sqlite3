@@ -55,6 +55,14 @@ class SQLitePDODatabase extends SQLite3Database {
 		return true;
 	}
 
+	/**
+	 * Overloaded since the parent class tries to call close() on the connection,
+	 * but doing it here won't work as the PDO class has no such method.
+	 */
+	public function __destruct() {
+		// noop
+	}
+
 	public function query($sql, $errorLevel = E_USER_ERROR) {
 
 		if(isset($_REQUEST['previewwrite']) && in_array(strtolower(substr($sql,0,strpos($sql,' '))), array('insert','update','delete','replace'))) {
