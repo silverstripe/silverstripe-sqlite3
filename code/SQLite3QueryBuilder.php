@@ -81,6 +81,8 @@ class SQLite3QueryBuilder extends DBQueryBuilder {
 		$clause = "{$nl}";
 		if($limit['limit'] !== null) {
 			$clause .= "LIMIT {$limit['limit']} ";
+		} else {
+			$clause .= "LIMIT -1 ";
 		}
 		
 		if(isset($limit['start']) && is_numeric($limit['start']) && $limit['start'] !== 0) {
