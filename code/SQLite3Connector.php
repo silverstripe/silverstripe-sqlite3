@@ -111,58 +111,42 @@ class SQLite3Connector extends DBConnector {
 	}
 
 	public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR) {
-		// Check if we should only preview this query
-		if ($this->previewWrite($sql)) return;
-
 		// Type check, identify, and prepare parameters for passing to the statement bind function
 		$parsedParameters = $this->parsePreparedParameters($parameters);
 
-		// Benchmark query
-		$conn = $this->dbConn;
-		$handle = $this->benchmarkQuery($sql, function($sql) use($conn, $parsedParameters) {
-
-			// Prepare statement
-			$statement = @$conn->prepare($sql);
-			if(empty($statement)) return null;
-
-			// Bind all variables
+		// Prepare statement
+		$statement = @$this->dbConn->prepare($sql);
+		if($statement) {
+			// Bind and run to statement
 			for($i = 0; $i < count($parsedParameters); $i++) {
 				$value = $parsedParameters[$i]['value'];
 				$type = $parsedParameters[$i]['type'];
 				$statement->bindValue($i+1, $value, $type);
 			}
-
-			// Run
-			return $statement->execute();
-		});
-
-		// Check for errors
-		if (!$handle) {
-			$values = $this->parameterValues($parameters);
-			$this->databaseError($this->getLastError(), $errorLevel, $sql, $values);
-			return null;
+			
+			// Return successful result
+			$handle = $statement->execute();
+			if ($handle) {
+				return new SQLite3Query($this, $handle);
+			}
 		}
-
-		return new SQLite3Query($this, $handle);
+		
+		// Handle error
+		$values = $this->parameterValues($parameters);
+		$this->databaseError($this->getLastError(), $errorLevel, $sql, $values);
+		return null;
 	}
 
 	public function query($sql, $errorLevel = E_USER_ERROR) {
-		// Check if we should only preview this query
-		if ($this->previewWrite($sql)) return;
-
-		// Benchmark query
-		$conn = $this->dbConn;
-		$handle = $this->benchmarkQuery($sql, function($sql) use($conn) {
-			return @$conn->query($sql);
-		});
-
-		// Check for errors
-		if (!$handle) {
-			$this->databaseError($this->getLastError(), $errorLevel, $sql);
-			return null;
+		// Return successful result
+		$handle = @$this->dbConn->query($sql);
+		if ($handle) {
+			return new SQLite3Query($this, $handle);
 		}
-
-		return new SQLite3Query($this, $handle);
+	
+		// Handle error
+		$this->databaseError($this->getLastError(), $errorLevel, $sql);
+		return null;
 	}
 
 	public function quoteString($value) {
