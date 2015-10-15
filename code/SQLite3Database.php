@@ -257,13 +257,13 @@ class SQLite3Database extends SS_Database {
 				(Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
 				Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
 			";
-			$match['File'] = "(Filename LIKE '%$keywords%' OR Title LIKE '%$keywords%' OR Content LIKE '%$keywords%') AND ClassName = 'File'";
+			$match['File'] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = 'File'";
 
 			// We make the relevance search by converting a boolean mode search into a normal one
 			$relevanceKeywords = $keywords;
 			$htmlEntityRelevanceKeywords = $htmlEntityKeywords;
 			$relevance['SiteTree'] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
-			$relevance['File'] = "(Filename LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%')";
+			$relevance['File'] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
 		} else {
 			$relevance['SiteTree'] = $relevance['File'] = 1;
 			$match['SiteTree'] = $match['File'] = "1 = 1";
@@ -289,7 +289,6 @@ class SQLite3Database extends SS_Database {
 				"\"Content\"",
 				"\"LastEdited\"",
 				"\"Created\"",
-				"NULL AS \"Filename\"",
 				"NULL AS \"Name\"",
 				"\"CanViewType\"",
 				"$relevance[SiteTree] AS Relevance"
@@ -300,10 +299,9 @@ class SQLite3Database extends SS_Database {
 				"NULL AS \"ParentID\"",
 				"\"Title\"",
 				"NULL AS \"URLSegment\"",
-				"\"Content\"",
+				"NULL AS \"Content\"",
 				"\"LastEdited\"",
 				"\"Created\"",
-				"\"Filename\"",
 				"\"Name\"",
 				"NULL AS \"CanViewType\"",
 				"$relevance[File] AS Relevance"
