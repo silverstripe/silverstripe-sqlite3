@@ -1,8 +1,13 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use SilverStripe\ORM\Connect\SS_Query;
+use SQLite3Result;
+
 /**
  * A result-set from a SQLite3 database.
- * 
+ *
  * @package SQLite3
  */
 class SQLite3Query extends SS_Query
@@ -10,14 +15,14 @@ class SQLite3Query extends SS_Query
 
     /**
      * The SQLite3Connector object that created this result set.
-     * 
+     *
      * @var SQLite3Connector
      */
     protected $database;
 
     /**
      * The internal sqlite3 handle that points to the result set.
-     * 
+     *
      * @var SQLite3Result
      */
     protected $handle;

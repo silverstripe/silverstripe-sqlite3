@@ -1,8 +1,16 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use SilverStripe\ORM\Connect\DBSchemaManager;
+use Exception;
+use SapphireTest;
+use Debug;
+use Director;
+
 /**
  * SQLite schema manager class
- * 
+ *
  * @package SQLite3
  */
 class SQLite3SchemaManager extends DBSchemaManager
@@ -10,7 +18,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Instance of the database controller this schema belongs to
-     * 
+     *
      * @var SQLite3Database
      */
     protected $database = null;
@@ -28,7 +36,7 @@ class SQLite3SchemaManager extends DBSchemaManager
      * @var boolean
      */
     public static $vacuum = true;
-    
+
     public function createDatabase($name)
     {
         // Ensure that any existing database is cleared before connection
@@ -41,7 +49,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         if ($this->database->getLivesInMemory()) {
             return;
         }
-         
+
         // If using file based database ensure any existing file is removed
         $parameters = $this->database->getParameters();
         $fullpath = $parameters['path'] . '/' . $name;
@@ -49,35 +57,35 @@ class SQLite3SchemaManager extends DBSchemaManager
             unlink($fullpath);
         }
     }
-    
+
     public function databaseList()
     {
         $parameters = $this->database->getParameters();
-        
+
         // If in-memory use the current database name only
         if ($this->database->getLivesInMemory()) {
             return array($parameters['database']);
         }
-        
+
         // If using file based database enumerate files in the database directory
         $directory = $parameters['path'];
         $files = scandir($directory);
-        
+
         // Filter each file in this directory
         $databases = array();
         if ($files !== false) {
             foreach ($files as $file) {
-            
+
             // Filter non-files
             if (!is_file("$directory/$file")) {
                 continue;
             }
-            
+
             // Filter those with correct extension
             if (!SQLite3Database::is_valid_database_name($file)) {
                 continue;
             }
-            
+
                 $databases[] = $file;
             }
         }
@@ -89,7 +97,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         $databases = $this->databaseList();
         return in_array($name, $databases);
     }
-    
+
     /**
      * Empties any cached enum values
      */
@@ -97,14 +105,14 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         $this->enum_map = array();
     }
-    
+
     public function schemaUpdate($callback)
     {
         // Set locking mode
         $this->database->setPragma('locking_mode', 'EXCLUSIVE');
         $this->checkAndRepairTable();
         $this->flushCache();
-        
+
         // Initiate schema update
         $error = null;
         try {
@@ -112,10 +120,10 @@ class SQLite3SchemaManager extends DBSchemaManager
         } catch (Exception $ex) {
             $error = $ex;
         }
-        
+
         // Revert locking mode
         $this->database->setPragma('locking_mode', SQLite3Database::$default_pragma['locking_mode']);
-        
+
         if ($error) {
             throw $error;
         }
@@ -123,13 +131,13 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Empty a specific table
-     * 
+     *
      * @param string $table
      */
     public function clearTable($table)
     {
         if ($table != 'SQLiteEnums') {
-            $this->dbConn->query("DELETE FROM \"$table\"");
+            $this->query("DELETE FROM \"$table\"");
         }
     }
 
@@ -189,7 +197,7 @@ class SQLite3SchemaManager extends DBSchemaManager
             }
         }
     }
-    
+
     public function renameTable($oldTableName, $newTableName)
     {
         $this->query("ALTER TABLE \"$oldTableName\" RENAME TO \"$newTableName\"");
@@ -201,7 +209,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         if (!SapphireTest::using_temp_db() && !self::$checked_and_repaired) {
             $this->alterationMessage("Checking database integrity", "repaired");
-            
+
             // Check for any tables with failed integrity
             if ($messages = $this->query('PRAGMA integrity_check')) {
                 foreach ($messages as $message) {
@@ -211,7 +219,7 @@ class SQLite3SchemaManager extends DBSchemaManager
                     }
                 }
             }
-            
+
             // If enabled vacuum (clean and rebuild) the database
             if (self::$vacuum) {
                 $this->query('VACUUM', E_USER_NOTICE);
@@ -224,7 +232,7 @@ class SQLite3SchemaManager extends DBSchemaManager
             }
             self::$checked_and_repaired = true;
         }
-        
+
         return $ok;
     }
 
@@ -270,7 +278,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Remember original indexes
         $indexList = $this->indexList($tableName);
-        
+
         // Then alter the table column
         foreach ($queries as $query) {
             $this->query($query.';');
@@ -290,7 +298,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         if (!array_key_exists($oldName, $oldFieldList)) {
             return;
         }
-        
+
         // Determine column mappings
         $oldCols = array();
         $newColsSpec = array();
@@ -328,10 +336,10 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function fieldList($table)
     {
         $sqlCreate = $this->preparedQuery(
-            'SELECT sql FROM sqlite_master WHERE type = ? AND name = ?',
+            'SELECT "sql" FROM "sqlite_master" WHERE "type" = ? AND "name" = ?',
             array('table', $table)
         )->record();
-        
+
         $fieldList = array();
         if ($sqlCreate && $sqlCreate['sql']) {
             preg_match('/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
@@ -352,7 +360,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Create an index on a table.
-     * 
+     *
      * @param string $tableName The name of the table.
      * @param string $indexName The name of the index.
      * @param array $indexSpec The specification of the index, see Database::requireIndex() for more details.
@@ -371,17 +379,17 @@ class SQLite3SchemaManager extends DBSchemaManager
         // Drop existing index
         $sqliteName = $this->buildSQLiteIndexName($tableName, $indexName);
         $this->query("DROP INDEX IF EXISTS \"$sqliteName\"");
-        
+
         // Create the index
         $this->createIndex($tableName, $indexName, $indexSpec);
     }
-    
+
     /**
      * Builds the internal SQLLite index name given the silverstripe table and index name.
-     * 
+     *
      * The name is built using the table and index name in order to prevent name collisions
      * between indexes of the same name across multiple tables
-     * 
+     *
      * @param string $tableName
      * @param string $indexName
      * @return string The SQLite3 name of the index
@@ -390,19 +398,19 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         return "{$tableName}_{$indexName}";
     }
-    
+
     protected function parseIndexSpec($name, $spec)
     {
         $spec = parent::parseIndexSpec($name, $spec);
-        
+
         // Only allow index / unique index types
         if (!in_array($spec['type'], array('index', 'unique'))) {
             $spec['type'] = 'index';
         }
-        
+
         return $spec;
     }
-    
+
     public function indexKey($table, $index, $spec)
     {
         return $this->buildSQLiteIndexName($table, $index);
@@ -411,20 +419,20 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function indexList($table)
     {
         $indexList = array();
-        
+
         // Enumerate each index and related fields
         foreach ($this->query("PRAGMA index_list(\"$table\")") as $index) {
-            
+
             // The SQLite internal index name, not the actual Silverstripe name
             $indexName = $index["name"];
             $indexType = $index['unique'] ? 'unique' : 'index';
-            
+
             // Determine a clean list of column names within this index
             $list = array();
             foreach ($this->query("PRAGMA index_info(\"$indexName\")") as $details) {
                 $list[] = preg_replace('/^"?(.*)"?$/', '$1', $details['name']);
             }
-            
+
             // Safely encode this spec
             $indexList[$indexName] = $this->parseIndexSpec($indexName, array(
                 'name' => $indexName,
@@ -446,11 +454,11 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
         return $tables;
     }
-    
+
     /**
      * Return a boolean type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
     public function boolean($values)
@@ -461,8 +469,8 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Return a date type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
     public function date($values)
@@ -472,11 +480,11 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Return a decimal type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function decimal($values, $asDbValue = false)
+    public function decimal($values)
     {
         $default = isset($values['default']) && is_numeric($values['default']) ? $values['default'] : 0;
         return "NUMERIC NOT NULL DEFAULT $default";
@@ -488,25 +496,25 @@ class SQLite3SchemaManager extends DBSchemaManager
      * @var array
      */
     protected $enum_map = array();
-    
+
     /**
      * Return a enum type-formatted string
      *
      * enums are not supported. as a workaround to store allowed values we creates an additional table
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
     public function enum($values)
     {
         $tablefield = $values['table'] . '.' . $values['name'];
         $enumValues = implode(',', $values['enums']);
-        
+
         // Ensure the cache table exists
         if (empty($this->enum_map)) {
             $this->query("CREATE TABLE IF NOT EXISTS \"SQLiteEnums\" (\"TableColumn\" TEXT PRIMARY KEY, \"EnumList\" TEXT)");
         }
-        
+
         // Ensure the table row exists
         if (empty($this->enum_map[$tablefield]) || $this->enum_map[$tablefield] != $enumValues) {
             $this->preparedQuery(
@@ -515,7 +523,7 @@ class SQLite3SchemaManager extends DBSchemaManager
             );
             $this->enum_map[$tablefield] = $enumValues;
         }
-        
+
         // Set default
         if (!empty($values['default'])) {
             $default = str_replace(array('"', "'", "\\", "\0"), "", $values['default']);
@@ -524,14 +532,14 @@ class SQLite3SchemaManager extends DBSchemaManager
             return 'TEXT';
         }
     }
-    
+
     /**
      * Return a set type-formatted string
      * This type doesn't exist in SQLite either
-     * 
+     *
      * @see SQLite3SchemaManager::enum()
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
     public function set($values)
@@ -541,33 +549,33 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Return a float type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function float($values, $asDbValue = false)
+    public function float($values)
     {
         return "REAL";
     }
 
     /**
      * Return a Double type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function double($values, $asDbValue = false)
+    public function double($values)
     {
         return "REAL";
     }
 
     /**
      * Return a int type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function int($values, $asDbValue = false)
+    public function int($values)
     {
         return "INTEGER({$values['precision']}) " . strtoupper($values['null']) . " DEFAULT " . (int)$values['default'];
     }
@@ -575,41 +583,41 @@ class SQLite3SchemaManager extends DBSchemaManager
     /**
      * Return a bigint type-formatted string
      *
-     * @params array $values Contains a tokenised list of info about this data type
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function bigint($values, $asDbValue = false)
+    public function bigint($values)
     {
-        return $this->int($values, $asDbValue);
+        return $this->int($values);
     }
 
     /**
      * Return a datetime type-formatted string
      * For SQLite3, we simply return the word 'TEXT', no other parameters are necessary
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function ss_datetime($values, $asDbValue = false)
+    public function datetime($values)
     {
         return "DATETIME";
     }
 
     /**
      * Return a text type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function text($values, $asDbValue = false)
+    public function text($values)
     {
         return 'TEXT';
     }
 
     /**
      * Return a time type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
     public function time($values)
@@ -619,11 +627,11 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     /**
      * Return a varchar type-formatted string
-     * 
-     * @params array $values Contains a tokenised list of info about this data type
+     *
+     * @param array $values Contains a tokenised list of info about this data type
      * @return string
      */
-    public function varchar($values, $asDbValue = false)
+    public function varchar($values)
     {
         return "VARCHAR({$values['precision']}) COLLATE NOCASE";
     }
@@ -645,25 +653,27 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function hasTable($tableName)
     {
         return (bool)$this->preparedQuery(
-            'SELECT name FROM sqlite_master WHERE type = ? AND name = ?',
+            'SELECT "name" FROM "sqlite_master" WHERE "type" = ? AND "name" = ?',
             array('table', $tableName)
         )->first();
     }
 
     /**
      * Return enum values for the given field
-     * 
+     *
+     * @param string $tableName
+     * @param string $fieldName
      * @return array
      */
     public function enumValuesForField($tableName, $fieldName)
     {
         $tablefield = "$tableName.$fieldName";
-        
+
         // Check already cached values for this field
         if (!empty($this->enum_map[$tablefield])) {
             return explode(',', $this->enum_map[$tablefield]);
         }
-        
+
         // Retrieve and cache these details from the database
         $classnameinfo = $this->preparedQuery(
             "SELECT EnumList FROM SQLiteEnums WHERE TableColumn = ?",
@@ -674,17 +684,17 @@ class SQLite3SchemaManager extends DBSchemaManager
             $this->enum_map[$tablefield] = $valueList;
             return explode(',', $valueList);
         }
-        
+
         // Fallback to empty list
         return array();
     }
-    
+
     public function dbDataType($type)
     {
         $values = array(
             'unsigned integer' => 'INT'
         );
-        
+
         if (isset($values[$type])) {
             return $values[$type];
         } else {

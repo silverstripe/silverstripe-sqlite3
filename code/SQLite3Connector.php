@@ -1,8 +1,13 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use SilverStripe\ORM\Connect\DBConnector;
+use SQLite3;
+
 /**
  * SQLite connector class
- * 
+ *
  * @package SQLite3
  */
 class SQLite3Connector extends DBConnector
@@ -10,14 +15,14 @@ class SQLite3Connector extends DBConnector
 
     /**
      * The name of the database.
-     * 
+     *
      * @var string
      */
     protected $databaseName;
 
     /**
      * Connection to the DBMS.
-     * 
+     *
      * @var SQLite3
      */
     protected $dbConn;
@@ -66,7 +71,7 @@ class SQLite3Connector extends DBConnector
 
     /**
      * Prepares the list of parameters in preparation for passing to mysqli_stmt_bind_param
-     * 
+     *
      * @param array $parameters List of parameters
      * @return array List of parameters types and values
      */
@@ -133,14 +138,14 @@ class SQLite3Connector extends DBConnector
                 $type = $parsedParameters[$i]['type'];
                 $statement->bindValue($i+1, $value, $type);
             }
-            
+
             // Return successful result
             $handle = $statement->execute();
             if ($handle) {
                 return new SQLite3Query($this, $handle);
             }
         }
-        
+
         // Handle error
         $values = $this->parameterValues($parameters);
         $this->databaseError($this->getLastError(), $errorLevel, $sql, $values);
@@ -154,7 +159,7 @@ class SQLite3Connector extends DBConnector
         if ($handle) {
             return new SQLite3Query($this, $handle);
         }
-    
+
         // Handle error
         $this->databaseError($this->getLastError(), $errorLevel, $sql);
         return null;

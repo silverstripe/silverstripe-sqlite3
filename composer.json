@@ -24,6 +24,11 @@
 			"dev-master": "2.0.x-dev"
 		}
 	},
+	"autoload": {
+		"psr-4": {
+			"SilverStripe\\SQLite\\": "code/"
+		}
+	},
     "minimum-stability": "dev",
     "prefer-stable": true
 }
