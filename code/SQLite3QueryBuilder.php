@@ -1,13 +1,21 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use SilverStripe\ORM\Queries\SQLAssignmentRow;
+use SilverStripe\ORM\Queries\SQLInsert;
+use SilverStripe\ORM\Queries\SQLSelect;
+use SilverStripe\ORM\Connect\DBQueryBuilder;
+use InvalidArgumentException;
+
 /**
  * Builds a SQL query string from a SQLExpression object
- * 
+ *
  * @package SQLite3
  */
 class SQLite3QueryBuilder extends DBQueryBuilder
 {
-    
+
     /**
      * @param SQLInsert $query
      * @param array $parameters
@@ -20,14 +28,15 @@ class SQLite3QueryBuilder extends DBQueryBuilder
 
         $nl = $this->getSeparator();
         $into = $query->getInto();
-        
+
         // Column identifiers
         $columns = $query->getColumns();
-        
+
         // Build all rows
         $rowParts = array();
         foreach ($query->getRows() as $row) {
             // Build all columns in this row
+            /** @var SQLAssignmentRow $row */
             $assignments = $row->getAssignments();
             // Join SET components together, considering parameters
             $parts = array();
@@ -50,7 +59,7 @@ class SQLite3QueryBuilder extends DBQueryBuilder
         }
         $columnSQL = implode(', ', $columns);
         $sql = "INSERT INTO {$into}{$nl}($columnSQL){$nl}SELECT " . implode("{$nl}UNION ALL SELECT ", $rowParts);
-        
+
         return $sql;
     }
 
@@ -89,7 +98,7 @@ class SQLite3QueryBuilder extends DBQueryBuilder
         } else {
             $clause .= "LIMIT -1 ";
         }
-        
+
         if (isset($limit['start']) && is_numeric($limit['start']) && $limit['start'] !== 0) {
             $clause .= "OFFSET {$limit['start']}";
         }

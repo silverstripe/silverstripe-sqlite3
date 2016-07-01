@@ -1,8 +1,19 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use SilverStripe\ORM\DataList;
+use SilverStripe\ORM\ArrayList;
+use SilverStripe\ORM\Connect\SS_Database;
+use Config;
+use Deprecation;
+use PaginatedList;
+use SilverStripe\ORM\Queries\SQLSelect;
+
+
 /**
  * SQLite database controller class
- * 
+ *
  * @package SQLite3
  */
 class SQLite3Database extends SS_Database
@@ -10,7 +21,7 @@ class SQLite3Database extends SS_Database
 
     /**
      * Database schema manager object
-     * 
+     *
      * @var SQLite3SchemaManager
      */
     protected $schemaManager = null;
@@ -18,21 +29,21 @@ class SQLite3Database extends SS_Database
     /*
      * This holds the parameters that the original connection was created with,
      * so we can switch back to it if necessary (used for unit tests)
-     * 
+     *
      * @var array
      */
     protected $parameters;
 
     /*
      * if we're on a In-Memory db
-     * 
+     *
      * @var boolean
      */
     protected $livesInMemory = false;
 
     /**
      * List of default pragma values
-     * 
+     *
      * @todo Migrate to SS config
      *
      * @var array
@@ -46,7 +57,7 @@ class SQLite3Database extends SS_Database
     /**
      * Extension used to distinguish between sqllite database files and other files.
      * Required to handle multiple databases.
-     * 
+     *
      * @return string
      */
     public static function database_extension()
@@ -56,7 +67,7 @@ class SQLite3Database extends SS_Database
 
     /**
      * Check if a database name has a valid extension
-     * 
+     *
      * @param string $name
      * @return boolean
      */
@@ -89,7 +100,7 @@ class SQLite3Database extends SS_Database
             unset($parameters['memory']);
             $parameters['path'] = ':memory:';
         }
-        
+
         //We will store these connection parameters for use elsewhere (ie, unit tests)
         $this->parameters = $parameters;
         $this->schemaManager->flushCache();
@@ -122,7 +133,7 @@ class SQLite3Database extends SS_Database
                 SQLiteDatabaseConfigurationHelper::secure_db_dir($parameters['path']);
             }
         }
-        
+
         // 'path' and 'database' are merged into the full file path, which
         // is the format that connectors such as PDOConnector expect
         $parameters['filepath'] = $file;
@@ -145,7 +156,7 @@ class SQLite3Database extends SS_Database
 
     /**
      * Retrieve parameters used to connect to this SQLLite database
-     * 
+     *
      * @return array
      */
     public function getParameters()
@@ -170,9 +181,9 @@ class SQLite3Database extends SS_Database
 
     /**
      * Execute PRAGMA commands.
-     * 
-     * @param string pragma name
-     * @param string value to set
+     *
+     * @param string $pragma name
+     * @param string $value to set
      */
     public function setPragma($pragma, $value)
     {
@@ -181,8 +192,8 @@ class SQLite3Database extends SS_Database
 
     /**
      * Gets pragma value.
-     * 
-     * @param string pragma name
+     *
+     * @param string $pragma name
      * @return string the pragma value
      */
     public function getPragma($pragma)
@@ -236,9 +247,17 @@ class SQLite3Database extends SS_Database
      * - there must not be more than one MATCH operator per statement
      * - the fts3 extension needs to be available
      * for now we use the MySQL implementation with the MATCH()AGAINST() uglily replaced with LIKE
-     * 
+     *
+     * @param array $classesToSearch
      * @param string $keywords Keywords as a space separated string
-     * @return object DataObjectSet of result pages
+     * @param int $start
+     * @param int $pageLength
+     * @param string $sortBy
+     * @param string $extraFilter
+     * @param bool $booleanSearch
+     * @param string $alternativeFileFilter
+     * @param bool $invertedMatch
+     * @return PaginatedList DataObjectSet of result pages
      */
     public function searchEngine($classesToSearch, $keywords, $start, $pageLength, $sortBy = "Relevance DESC",
         $extraFilter = "", $booleanSearch = false, $alternativeFileFilter = "", $invertedMatch = false
@@ -260,7 +279,7 @@ class SQLite3Database extends SS_Database
 
         // Always ensure that only pages with ShowInSearch = 1 can be searched
         $extraFilters['SiteTree'] .= ' AND ShowInSearch <> 0';
-        // File.ShowInSearch was added later, keep the database driver backwards compatible 
+        // File.ShowInSearch was added later, keep the database driver backwards compatible
         // by checking for its existence first
         $fields = $this->getSchemaManager()->fieldList('File');
         if (array_key_exists('ShowInSearch', $fields)) {
@@ -291,7 +310,10 @@ class SQLite3Database extends SS_Database
         $baseClasses = array('SiteTree' => '', 'File' => '');
         $queries = array();
         foreach ($classesToSearch as $class) {
-            $queries[$class] = DataList::create($class)->where($notMatch . $match[$class] . $extraFilters[$class], "")->dataQuery()->query();
+            $queries[$class] = DataList::create($class)
+                ->where($notMatch . $match[$class] . $extraFilters[$class])
+                ->dataQuery()
+                ->query();
             $fromArr = $queries[$class]->getFrom();
             $baseClasses[$class] = reset($fromArr);
         }
@@ -348,6 +370,7 @@ class SQLite3Database extends SS_Database
         $queryParameters = array();
         $totalCount = 0;
         foreach ($queries as $query) {
+            /** @var SQLSelect $query */
             $querySQLs[] = $query->sql($parameters);
             $queryParameters = array_merge($queryParameters, $parameters);
             $totalCount += $query->unlimitedRowCount();
@@ -368,7 +391,7 @@ class SQLite3Database extends SS_Database
         }
         $list = new PaginatedList($doSet);
         $list->setPageStart($start);
-        $list->setPageLEngth($pageLength);
+        $list->setPageLength($pageLength);
         $list->setTotalItems($totalCount);
         return $list;
     }

@@ -1,19 +1,27 @@
 <?php
 
+namespace SilverStripe\SQLite;
+
+use DatabaseConfigurationHelper;
+use SQLite3;
+use PDO;
+use Exception;
+use DatabaseAdapterRegistry;
+
 /**
  * This is a helper class for the SS installer.
- * 
+ *
  * It does all the specific checking for SQLiteDatabase
  * to ensure that the configuration is setup correctly.
- * 
+ *
  * @package SQLite3
  */
 class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
 {
-    
+
     /**
      * Create a connection of the appropriate type
-     * 
+     *
      * @param array $databaseConfig
      * @param string $error Error message passed by value
      * @return mixed|null Either the connection object, or null if error
@@ -28,7 +36,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             }
             $file = $databaseConfig['path'] . '/' . $databaseConfig['database'];
             $conn = null;
-        
+
             switch ($databaseConfig['type']) {
                 case 'SQLite3Database':
                     if (empty($databaseConfig['key'])) {
@@ -45,7 +53,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
                     $error = 'Invalid connection type';
                     return null;
             }
-            
+
             if ($conn) {
                 return $conn;
             } else {
@@ -57,7 +65,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             return null;
         }
     }
-    
+
     public function requireDatabaseFunctions($databaseConfig)
     {
         $data = DatabaseAdapterRegistry::get_adapter($databaseConfig['type']);
@@ -88,9 +96,9 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
 
     /**
      * Ensure a database connection is possible using credentials provided.
-     * 
+     *
      * @todo Validate path
-     * 
+     *
      * @param array $databaseConfig Associative array of db configuration, e.g. "type", "path" etc
      * @return array Result - e.g. array('success' => true, 'error' => 'details of error')
      */
@@ -109,7 +117,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             'error' => "Missing database filename"
         );
         }
-        
+
         // Create and secure db directory
         $path = $databaseConfig['path'];
         $dirCreated = self::create_db_dir($path);
@@ -129,7 +137,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
 
         $conn = $this->createConnection($databaseConfig, $error);
         $success = !empty($conn);
-        
+
         return array(
             'success' => $success,
             'connection' => $conn,
@@ -140,7 +148,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     public function getDatabaseVersion($databaseConfig)
     {
         $version = 0;
-        
+
         switch ($databaseConfig['type']) {
             case 'SQLite3Database':
                 $info = SQLite3::version();
@@ -186,12 +194,12 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             'alreadyExists' => $alreadyExists,
         );
     }
-    
+
     /**
      * Creates the provided directory and prepares it for
      * storing SQLlite. Use {@link secure_db_dir()} to
      * secure it against unauthorized access.
-     * 
+     *
      * @param String $path Absolute path, usually with a hidden folder.
      * @return boolean
      */
@@ -199,14 +207,14 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     {
         return file_exists($path) || mkdir($path);
     }
-    
+
     /**
      * Secure the provided directory via web-access
-     * by placing a .htaccess file in it. 
+     * by placing a .htaccess file in it.
      * This is just required if the database directory
      * is placed within a publically accessible webroot (the
      * default path is in a hidden folder within assets/).
-     * 
+     *
      * @param String $path Absolute path, containing a SQLite datatbase
      * @return boolean
      */
@@ -214,7 +222,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     {
         return (is_writeable($path)) ? file_put_contents($path . '/.htaccess', 'deny from all') : false;
     }
-    
+
     public function requireDatabaseAlterPermissions($databaseConfig)
     {
         // no concept of table-specific permissions; If you can connect you can alter schema

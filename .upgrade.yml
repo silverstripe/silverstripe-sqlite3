@@ -1,0 +1,7 @@
+mappings:
+  SQLite3Connector: SilverStripe\SQLite\SQLite3Connector
+  SQLite3Database: SilverStripe\SQLite\SQLite3Database
+  SQLite3Query: SilverStripe\SQLite\SQLite3Query
+  SQLite3QueryBuilder: SilverStripe\SQLite\SQLite3QueryBuilder
+  SQLite3SchemaManager: SilverStripe\SQLite\SQLite3SchemaManager
+  SQLiteDatabaseConfigurationHelper: SilverStripe\SQLite\SQLiteDatabaseConfigurationHelper
