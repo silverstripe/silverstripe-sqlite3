@@ -62,7 +62,7 @@ class SQLite3Database extends SS_Database
      */
     public static function database_extension()
     {
-        return Config::inst()->get('SQLite3Database', 'database_extension');
+        return Config::inst()->get('SilverStripe\\SQLite\\SQLite3Database', 'database_extension');
     }
 
     /**

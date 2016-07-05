@@ -29,6 +29,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     protected function createConnection($databaseConfig, &$error)
     {
         $error = null;
+        /** @skipUpgrade */
         try {
             if (!file_exists($databaseConfig['path'])) {
                 self::create_db_dir($databaseConfig['path']);
@@ -149,6 +150,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     {
         $version = 0;
 
+        /** @skipUpgrade */
         switch ($databaseConfig['type']) {
             case 'SQLite3Database':
                 $info = SQLite3::version();
