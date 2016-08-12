@@ -2,12 +2,15 @@
 
 namespace SilverStripe\SQLite;
 
+use Convert;
+use File;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\Connect\SS_Database;
 use Config;
 use Deprecation;
 use PaginatedList;
+use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\Queries\SQLSelect;
 
 
@@ -265,62 +268,62 @@ class SQLite3Database extends SS_Database
         $keywords = $this->escapeString(str_replace(array('*', '+', '-', '"', '\''), '', $keywords));
         $htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
-        $extraFilters = array('SiteTree' => '', 'File' => '');
+        $pageClass = 'SilverStripe\\CMS\\Model\\SiteTree';
+		$fileClass = 'File';
+
+        $extraFilters = array($pageClass => '', $fileClass => '');
 
         if ($extraFilter) {
-            $extraFilters['SiteTree'] = " AND $extraFilter";
+            $extraFilters[$pageClass] = " AND $extraFilter";
 
             if ($alternativeFileFilter) {
-                $extraFilters['File'] = " AND $alternativeFileFilter";
+                $extraFilters[$fileClass] = " AND $alternativeFileFilter";
             } else {
-                $extraFilters['File'] = $extraFilters['SiteTree'];
+                $extraFilters[$fileClass] = $extraFilters[$pageClass];
             }
         }
 
         // Always ensure that only pages with ShowInSearch = 1 can be searched
-        $extraFilters['SiteTree'] .= ' AND ShowInSearch <> 0';
+        $extraFilters[$pageClass] .= ' AND ShowInSearch <> 0';
         // File.ShowInSearch was added later, keep the database driver backwards compatible
         // by checking for its existence first
-        $fields = $this->getSchemaManager()->fieldList('File');
-        if (array_key_exists('ShowInSearch', $fields)) {
-            $extraFilters['File'] .= " AND ShowInSearch <> 0";
+        if (File::singleton()->db('ShowInSearch')) {
+            $extraFilters[$fileClass] .= " AND ShowInSearch <> 0";
         }
 
         $limit = $start . ", " . (int) $pageLength;
 
         $notMatch = $invertedMatch ? "NOT " : "";
         if ($keywords) {
-            $match['SiteTree'] = "
+            $match[$pageClass] = "
 				(Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
 				Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
 			";
-            $match['File'] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = 'File'";
+            $fileClassSQL = Convert::raw2sql($fileClass);
+            $match[$fileClass] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = '$fileClassSQL'";
 
             // We make the relevance search by converting a boolean mode search into a normal one
             $relevanceKeywords = $keywords;
             $htmlEntityRelevanceKeywords = $htmlEntityKeywords;
-            $relevance['SiteTree'] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
-            $relevance['File'] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
+            $relevance[$pageClass] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
+            $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
-            $relevance['SiteTree'] = $relevance['File'] = 1;
-            $match['SiteTree'] = $match['File'] = "1 = 1";
+            $relevance[$pageClass] = $relevance[$fileClass] = 1;
+            $match[$pageClass] = $match[$fileClass] = "1 = 1";
         }
 
-        // Generate initial queries and base table names
-        $baseClasses = array('SiteTree' => '', 'File' => '');
+        // Generate initial queries
         $queries = array();
         foreach ($classesToSearch as $class) {
             $queries[$class] = DataList::create($class)
                 ->where($notMatch . $match[$class] . $extraFilters[$class])
                 ->dataQuery()
                 ->query();
-            $fromArr = $queries[$class]->getFrom();
-            $baseClasses[$class] = reset($fromArr);
         }
 
         // Make column selection lists
         $select = array(
-            'SiteTree' => array(
+            $pageClass => array(
                 "\"ClassName\"",
                 "\"ID\"",
                 "\"ParentID\"",
@@ -331,9 +334,9 @@ class SQLite3Database extends SS_Database
                 "\"Created\"",
                 "NULL AS \"Name\"",
                 "\"CanViewType\"",
-                "$relevance[SiteTree] AS Relevance"
+                $relevance[$pageClass] . " AS Relevance"
             ),
-            'File' => array(
+            $fileClass => array(
                 "\"ClassName\"",
                 "\"ID\"",
                 "NULL AS \"ParentID\"",
@@ -344,15 +347,14 @@ class SQLite3Database extends SS_Database
                 "\"Created\"",
                 "\"Name\"",
                 "NULL AS \"CanViewType\"",
-                "$relevance[File] AS Relevance"
+                $relevance[$fileClass] . " AS Relevance"
             )
         );
 
         // Process queries
         foreach ($classesToSearch as $class) {
             // There's no need to do all that joining
-            $queries[$class]->setFrom($baseClasses[$class]);
-
+            $queries[$class]->setFrom('"'.DataObject::getSchema()->baseDataTable($class).'"');
             $queries[$class]->setSelect(array());
             foreach ($select[$class] as $clause) {
                 if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause, $matches)) {
