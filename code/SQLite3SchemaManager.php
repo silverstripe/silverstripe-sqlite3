@@ -2,16 +2,14 @@
 
 namespace SilverStripe\SQLite;
 
+use SilverStripe\Control\Director;
+use SilverStripe\Dev\Debug;
+use SilverStripe\Dev\SapphireTest;
 use SilverStripe\ORM\Connect\DBSchemaManager;
 use Exception;
-use SapphireTest;
-use Debug;
-use Director;
 
 /**
  * SQLite schema manager class
- *
- * @package SQLite3
  */
 class SQLite3SchemaManager extends DBSchemaManager
 {
@@ -52,7 +50,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // If using file based database ensure any existing file is removed
         $parameters = $this->database->getParameters();
-        $fullpath = $parameters['path'] . '/' . $name;
+        $fullpath = $parameters['path'] . '/' . $name . SQLite3Database::database_extension();
         if (is_writable($fullpath)) {
             unlink($fullpath);
         }
@@ -76,17 +74,21 @@ class SQLite3SchemaManager extends DBSchemaManager
         if ($files !== false) {
             foreach ($files as $file) {
 
-            // Filter non-files
-            if (!is_file("$directory/$file")) {
-                continue;
-            }
+                // Filter non-files
+                if (!is_file("$directory/$file")) {
+                    continue;
+                }
 
-            // Filter those with correct extension
-            if (!SQLite3Database::is_valid_database_name($file)) {
-                continue;
-            }
+                // Filter those with correct extension
+                if (!SQLite3Database::is_valid_database_name($file)) {
+                    continue;
+                }
 
-                $databases[] = $file;
+                if ($extension = SQLite3Database::database_extension()) {
+                    $databases[] = substr($file, 0, -strlen($extension));
+                } else {
+                    $databases[] = $file;
+                }
             }
         }
         return $databases;

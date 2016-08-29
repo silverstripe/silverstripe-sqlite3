@@ -10,8 +10,6 @@ use InvalidArgumentException;
 
 /**
  * Builds a SQL query string from a SQLExpression object
- *
- * @package SQLite3
  */
 class SQLite3QueryBuilder extends DBQueryBuilder
 {

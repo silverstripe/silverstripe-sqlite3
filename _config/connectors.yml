@@ -1,36 +1,36 @@
 ---
 name: sqlite3connectors
 ---
-Injector:
+SilverStripe\Core\Injector\Injector:
   SQLite3PDODatabase:
-    class: 'SilverStripe\SQLite\SQLite3Database'
+    class: SilverStripe\SQLite\SQLite3Database
     properties:
       connector: %$PDOConnector
       schemaManager: %$SQLite3SchemaManager
       queryBuilder: %$SQLite3QueryBuilder
   SQLite3Database:
-    class: 'SilverStripe\SQLite\SQLite3Database'
+    class: SilverStripe\SQLite\SQLite3Database
     properties:
       connector: %$SQLite3Connector
       schemaManager: %$SQLite3SchemaManager
       queryBuilder: %$SQLite3QueryBuilder
 # Legacy connector names
   SQLiteDatabase:
-    class: 'SilverStripe\SQLite\SQLite3Database'
+    class: SilverStripe\SQLite\SQLite3Database
     properties:
       connector: %$SQLite3Connector
       schemaManager: %$SQLite3SchemaManager
       queryBuilder: %$SQLite3QueryBuilder
   SQLitePDODatabase:
-    class: 'SilverStripe\SQLite\SQLite3Database'
+    class: SilverStripe\SQLite\SQLite3Database
     properties:
       connector: %$SQLite3Connector
       schemaManager: %$SQLite3SchemaManager
       queryBuilder: %$SQLite3QueryBuilder
   SQLite3Connector:
-    class: 'SilverStripe\SQLite\SQLite3Connector'
+    class: SilverStripe\SQLite\SQLite3Connector
     type: prototype
   SQLite3SchemaManager:
-    class: 'SilverStripe\SQLite\SQLite3SchemaManager'
+    class: SilverStripe\SQLite\SQLite3SchemaManager
   SQLite3QueryBuilder:
-    class: 'SilverStripe\SQLite\SQLite3QueryBuilder'
+    class: SilverStripe\SQLite\SQLite3QueryBuilder

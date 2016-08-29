@@ -9,20 +9,18 @@ Andreas Piening (Nickname: apiening)
 
 ## Requirements
 
- * SilverStripe 3.2 or newer
+ * SilverStripe 4.0 or newer
 
 ## Installation
 
- * If using composer, run `composer require silverstripe/sqlite3 1.4.*-dev`.
- * Otherwise, download, unzip and copy the sqlite3 folder to your project root so that it becomes a
-   sibling of `framework/`.
+ * Install using composer with `composer require silverstripe/sqlite3 ^2`.
 
 ## Configuration
 
 Either use the installer to automatically install SQLite or add this to your _config.php (right after
 "require_once("conf/ConfigureFromEnv.php");" if you are using _ss_environment.php)
 
-	$databaseConfig['type'] = 'SQLiteDatabase';
+	$databaseConfig['type'] = 'SQLite3Database';
 	$databaseConfig['path'] = "/path/to/my/database/file";
 
 Make sure the webserver has sufficient privileges to write to that folder and that it is protected from
@@ -42,18 +40,14 @@ $database = 'SS_mysite';
 require_once("conf/ConfigureFromEnv.php");
 
 global $databaseConfig;
-
 $databaseConfig = array(
-	"type" => 'SQLiteDatabase',
+	"type" => 'SQLite3Database',
 	"server" => 'none',
 	"username" => 'none',
 	"password" => 'none',
 	"database" => $database,
 	"path" => "/path/to/my/database/file",
 );
-
-SSViewer::set_theme('blackcandy');
-SiteTree::enable_nested_urls();
 ```
 
 Again: make sure that the webserver has permission to read and write to the above path (/path/to/my/database/,

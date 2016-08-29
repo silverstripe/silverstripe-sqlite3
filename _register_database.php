@@ -1,5 +1,7 @@
 <?php
 
+use SilverStripe\Dev\Install\DatabaseAdapterRegistry;
+
 $sqliteDatabaseAdapterRegistryFields = array(
 	'path' => array(
 		'title' => 'Directory path<br /><small>Absolute path to directory, writeable by the webserver user.<br />'

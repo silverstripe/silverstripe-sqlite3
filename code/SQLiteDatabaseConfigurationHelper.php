@@ -2,19 +2,17 @@
 
 namespace SilverStripe\SQLite;
 
-use DatabaseConfigurationHelper;
+use SilverStripe\Dev\Install\DatabaseAdapterRegistry;
+use SilverStripe\Dev\Install\DatabaseConfigurationHelper;
 use SQLite3;
 use PDO;
 use Exception;
-use DatabaseAdapterRegistry;
 
 /**
  * This is a helper class for the SS installer.
  *
  * It does all the specific checking for SQLiteDatabase
  * to ensure that the configuration is setup correctly.
- *
- * @package SQLite3
  */
 class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
 {

@@ -2,25 +2,31 @@
 
 namespace SilverStripe\SQLite;
 
-use Convert;
-use File;
-use SilverStripe\ORM\DataList;
+use SilverStripe\Assets\File;
+use SilverStripe\Core\Config\Configurable;
+use SilverStripe\Core\Convert;
+use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\Connect\SS_Database;
-use Config;
-use Deprecation;
-use PaginatedList;
+use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
+use SilverStripe\ORM\PaginatedList;
 use SilverStripe\ORM\Queries\SQLSelect;
-
 
 /**
  * SQLite database controller class
- *
- * @package SQLite3
  */
 class SQLite3Database extends SS_Database
 {
+    use Configurable;
+
+    /**
+     * Extension added to every database name
+     *
+     * @config
+     * @var string
+     */
+    private static $database_extension = '.sqlite';
 
     /**
      * Database schema manager object
@@ -65,7 +71,7 @@ class SQLite3Database extends SS_Database
      */
     public static function database_extension()
     {
-        return Config::inst()->get('SilverStripe\\SQLite\\SQLite3Database', 'database_extension');
+        return static::config()->get('database_extension');
     }
 
     /**
@@ -110,16 +116,8 @@ class SQLite3Database extends SS_Database
 
         // Ensure database name is set
         if (empty($parameters['database'])) {
-            $parameters['database'] = 'database' . self::database_extension();
+            $parameters['database'] = 'database';
         }
-        $dbName = $parameters['database'];
-        if (!self::is_valid_database_name($dbName)) {
-            // If not using the correct file extension for database files then the
-            // results of SQLite3SchemaManager::databaseList will be unpredictable
-            $extension = self::database_extension();
-            Deprecation::notice('3.2', "SQLite3Database now expects a database file with extension \"$extension\". Behaviour may be unpredictable otherwise.");
-        }
-
         // use the very lightspeed SQLite In-Memory feature for testing
         if ($this->getLivesInMemory()) {
             $file = ':memory:';
@@ -130,7 +128,7 @@ class SQLite3Database extends SS_Database
             }
 
             //assumes that the path to dbname will always be provided:
-            $file = $parameters['path'] . '/' . $dbName;
+            $file = $parameters['path'] . '/' . $parameters['database'] . self::database_extension();
             if (!file_exists($parameters['path'])) {
                 SQLiteDatabaseConfigurationHelper::create_db_dir($parameters['path']);
                 SQLiteDatabaseConfigurationHelper::secure_db_dir($parameters['path']);
@@ -269,7 +267,7 @@ class SQLite3Database extends SS_Database
         $htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
         $pageClass = 'SilverStripe\\CMS\\Model\\SiteTree';
-		$fileClass = 'File';
+		$fileClass = 'SilverStripe\\Assets\\File';
 
         $extraFilters = array($pageClass => '', $fileClass => '');
 
