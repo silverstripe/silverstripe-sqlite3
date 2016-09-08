@@ -7,7 +7,7 @@ use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Convert;
 use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\ArrayList;
-use SilverStripe\ORM\Connect\SS_Database;
+use SilverStripe\ORM\Connect\Database;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\PaginatedList;
@@ -16,7 +16,7 @@ use SilverStripe\ORM\Queries\SQLSelect;
 /**
  * SQLite database controller class
  */
-class SQLite3Database extends SS_Database
+class SQLite3Database extends Database
 {
     use Configurable;
 
