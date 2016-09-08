@@ -7,8 +7,6 @@ use SQLite3;
 
 /**
  * SQLite connector class
- *
- * @package SQLite3
  */
 class SQLite3Connector extends DBConnector
 {
