@@ -2,13 +2,13 @@
 
 namespace SilverStripe\SQLite;
 
-use SilverStripe\ORM\Connect\SS_Query;
+use SilverStripe\ORM\Connect\Query;
 use SQLite3Result;
 
 /**
  * A result-set from a SQLite3 database.
  */
-class SQLite3Query extends SS_Query
+class SQLite3Query extends Query
 {
 
     /**
