@@ -49,8 +49,8 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
 
         // If using file based database ensure any existing file is removed
-        $parameters = $this->database->getParameters();
-        $fullpath = $parameters['path'] . '/' . $name . SQLite3Database::database_extension();
+        $path = $this->database->getPath();
+        $fullpath = $path . '/' . $name . SQLite3Database::database_extension();
         if (is_writable($fullpath)) {
             unlink($fullpath);
         }
@@ -58,15 +58,16 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     public function databaseList()
     {
-        $parameters = $this->database->getParameters();
-
         // If in-memory use the current database name only
         if ($this->database->getLivesInMemory()) {
-            return array($parameters['database']);
+            return array(
+                $this->database->getConnector()->getSelectedDatabase()
+                    ?: 'database'
+            );
         }
 
         // If using file based database enumerate files in the database directory
-        $directory = $parameters['path'];
+        $directory = $this->database->getPath();
         $files = scandir($directory);
 
         // Filter each file in this directory

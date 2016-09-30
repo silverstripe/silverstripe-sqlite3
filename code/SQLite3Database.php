@@ -123,15 +123,13 @@ class SQLite3Database extends Database
             $file = ':memory:';
         } else {
             // Ensure path is given
-            if (empty($parameters['path'])) {
-                $parameters['path'] = ASSETS_PATH . '/.sqlitedb';
-            }
+            $path = $this->getPath();
 
             //assumes that the path to dbname will always be provided:
-            $file = $parameters['path'] . '/' . $parameters['database'] . self::database_extension();
-            if (!file_exists($parameters['path'])) {
-                SQLiteDatabaseConfigurationHelper::create_db_dir($parameters['path']);
-                SQLiteDatabaseConfigurationHelper::secure_db_dir($parameters['path']);
+            $file = $path . '/' . $parameters['database'] . self::database_extension();
+            if (!file_exists($path)) {
+                SQLiteDatabaseConfigurationHelper::create_db_dir($path);
+                SQLiteDatabaseConfigurationHelper::secure_db_dir($path);
             }
         }
 
@@ -165,9 +163,29 @@ class SQLite3Database extends Database
         return $this->parameters;
     }
 
+    /**
+     * Determine if this Db is in memory
+     *
+     * @return bool
+     */
     public function getLivesInMemory()
     {
         return isset($this->parameters['path']) && $this->parameters['path'] === ':memory:';
+    }
+
+    /**
+     * Get file path. If in memory this is null
+     *
+     * @return string|null
+     */
+    public function getPath() {
+        if ($this->getLivesInMemory()) {
+            return null;
+        }
+        if (empty($this->parameters['path'])) {
+            return ASSETS_PATH . '/.sqlitedb';
+        }
+        return $this->parameters['path'];
     }
 
     public function supportsCollations()
