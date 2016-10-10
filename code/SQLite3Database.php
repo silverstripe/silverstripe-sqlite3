@@ -303,7 +303,7 @@ class SQLite3Database extends Database
         $extraFilters[$pageClass] .= ' AND ShowInSearch <> 0';
         // File.ShowInSearch was added later, keep the database driver backwards compatible
         // by checking for its existence first
-        if (File::singleton()->db('ShowInSearch')) {
+        if (File::singleton()->getSchema()->fieldSpec(File::class, 'ShowInSearch')) {
             $extraFilters[$fileClass] .= " AND ShowInSearch <> 0";
         }
 
