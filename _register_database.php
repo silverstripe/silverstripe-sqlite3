@@ -1,6 +1,7 @@
 <?php
 
 use SilverStripe\Dev\Install\DatabaseAdapterRegistry;
+use SilverStripe\SQLite\SQLiteDatabaseConfigurationHelper;
 
 $sqliteDatabaseAdapterRegistryFields = array(
 	'path' => array(
@@ -19,8 +20,10 @@ $sqliteDatabaseAdapterRegistryFields = array(
 DatabaseAdapterRegistry::register(
 	array(
 		'class' => 'SQLite3Database',
+        'module' => 'sqlite3',
 		'title' => 'SQLite 3.3+ (using SQLite3)',
-		'helperPath' => dirname(__FILE__).'/code/SQLiteDatabaseConfigurationHelper.php',
+		'helperPath' => __DIR__.'/code/SQLiteDatabaseConfigurationHelper.php',
+        'helperClass' => SQLiteDatabaseConfigurationHelper::class,
 		'supported' => class_exists('SQLite3'),
 		'missingExtensionText' => 'The <a href="http://php.net/manual/en/book.sqlite3.php">SQLite3</a> 
 			PHP Extension is not available. Please install or enable it of them and refresh this page.',
@@ -37,8 +40,10 @@ DatabaseAdapterRegistry::register(
 DatabaseAdapterRegistry::register(
 	array(
 		'class' => 'SQLite3PDODatabase',
+        'module' => 'sqlite3',
 		'title' => 'SQLite 3.3+ (using PDO)',
-		'helperPath' => dirname(__FILE__).'/code/SQLiteDatabaseConfigurationHelper.php',
+		'helperPath' => __DIR__.'/code/SQLiteDatabaseConfigurationHelper.php',
+        'helperClass' => SQLiteDatabaseConfigurationHelper::class,
 		'supported' => (class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers())),
 		'missingExtensionText' =>
 			'Either the <a href="http://php.net/manual/en/book.pdo.php">PDO Extension</a> or the

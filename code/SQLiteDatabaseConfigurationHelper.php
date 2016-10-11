@@ -20,6 +20,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     /**
      * Create a connection of the appropriate type
      *
+     * @skipUpgrade
      * @param array $databaseConfig
      * @param string $error Error message passed by value
      * @return mixed|null Either the connection object, or null if error
@@ -27,7 +28,6 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
     protected function createConnection($databaseConfig, &$error)
     {
         $error = null;
-        /** @skipUpgrade */
         try {
             if (!file_exists($databaseConfig['path'])) {
                 self::create_db_dir($databaseConfig['path']);
@@ -49,7 +49,7 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
                     $conn = @new PDO("sqlite:$file");
                     break;
                 default:
-                    $error = 'Invalid connection type';
+                    $error = 'Invalid connection type: ' . $databaseConfig['type'];
                     return null;
             }
 
