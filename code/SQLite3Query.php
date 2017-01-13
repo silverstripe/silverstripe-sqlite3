@@ -47,10 +47,10 @@ class SQLite3Query extends Query
     {
         $this->handle->reset();
         $i=0;
-        while ($i < $row && $row = @$this->handle->fetchArray()) {
+        while ($i <= $row && $result = @$this->handle->fetchArray(SQLITE3_ASSOC)) {
             $i++;
         }
-        return true;
+        return $result;
     }
 
     /**
@@ -58,6 +58,7 @@ class SQLite3Query extends Query
      */
     public function numRecords()
     {
+        $this->handle->reset();
         $c=0;
         while ($this->handle->fetchArray()) {
             $c++;
