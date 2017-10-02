@@ -1,7 +1,7 @@
 {
 	"name": "silverstripe/sqlite3",
 	"description": "Adds SQLite3 support to SilverStripe",
-	"type": "silverstripe-module",
+	"type": "silverstripe-vendormodule",
 	"keywords": ["silverstripe", "sqlite3", "database"],
 	"authors": [
 		{
@@ -14,7 +14,8 @@
 		}
 	],
 	"require": {
-		"silverstripe/framework": "~4.0"
+		"silverstripe/framework": "~4.0",
+		"silverstripe/vendor-plugin": "^1.0"
 	},
 	"require-dev": {
 		"phpunit/phpunit": "~4.8"
