@@ -210,7 +210,7 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         $ok = true;
 
-        if (!SapphireTest::using_temp_db() && !self::$checked_and_repaired) {
+        if (SapphireTest::getTempDB()->isUsed() && !self::$checked_and_repaired) {
             $this->alterationMessage("Checking database integrity", "repaired");
 
             // Check for any tables with failed integrity
