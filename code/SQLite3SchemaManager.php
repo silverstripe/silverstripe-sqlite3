@@ -4,7 +4,6 @@ namespace SilverStripe\SQLite;
 
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\Debug;
-use SilverStripe\Dev\SapphireTest;
 use SilverStripe\ORM\Connect\DBSchemaManager;
 use Exception;
 
@@ -210,7 +209,7 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         $ok = true;
 
-        if (!SapphireTest::using_temp_db() && !self::$checked_and_repaired) {
+        if (!self::$checked_and_repaired) {
             $this->alterationMessage("Checking database integrity", "repaired");
 
             // Check for any tables with failed integrity
@@ -370,10 +369,9 @@ class SQLite3SchemaManager extends DBSchemaManager
      */
     public function createIndex($tableName, $indexName, $indexSpec)
     {
-        $parsedSpec = $this->parseIndexSpec($indexName, $indexSpec);
         $sqliteName = $this->buildSQLiteIndexName($tableName, $indexName);
-        $columns = $parsedSpec['value'];
-        $unique = ($parsedSpec['type'] == 'unique') ? 'UNIQUE' : '';
+        $columns = $this->implodeColumnList($indexSpec['columns']);
+        $unique = ($indexSpec['type'] == 'unique') ? 'UNIQUE' : '';
         $this->query("CREATE $unique INDEX IF NOT EXISTS \"$sqliteName\" ON \"$tableName\" ($columns)");
     }
 
@@ -402,18 +400,6 @@ class SQLite3SchemaManager extends DBSchemaManager
         return "{$tableName}_{$indexName}";
     }
 
-    protected function parseIndexSpec($name, $spec)
-    {
-        $spec = parent::parseIndexSpec($name, $spec);
-
-        // Only allow index / unique index types
-        if (!in_array($spec['type'], array('index', 'unique'))) {
-            $spec['type'] = 'index';
-        }
-
-        return $spec;
-    }
-
     public function indexKey($table, $index, $spec)
     {
         return $this->buildSQLiteIndexName($table, $index);
@@ -437,11 +423,11 @@ class SQLite3SchemaManager extends DBSchemaManager
             }
 
             // Safely encode this spec
-            $indexList[$indexName] = $this->parseIndexSpec($indexName, array(
+            $indexList[$indexName] = array(
                 'name' => $indexName,
-                'value' => $this->implodeColumnList($list),
-                'type' => $indexType
-            ));
+                'columns' => $list,
+                'type' => $indexType,
+            );
         }
 
         return $indexList;
