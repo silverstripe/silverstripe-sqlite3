@@ -41,7 +41,11 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
                     if (empty($databaseConfig['key'])) {
                         $conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
                     } else {
-                        $conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $databaseConfig['key']);
+                        $conn = @new SQLite3(
+                            $file,
+                            SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE,
+                            $databaseConfig['key']
+                        );
                     }
                     break;
                 case 'SQLite3PDODatabase':
@@ -106,15 +110,15 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
         // Do additional validation around file paths
         if (empty($databaseConfig['path'])) {
             return array(
-            'success' => false,
-            'error' => "Missing directory path"
-        );
+                'success' => false,
+                'error' => "Missing directory path"
+            );
         }
         if (empty($databaseConfig['database'])) {
             return array(
-            'success' => false,
-            'error' => "Missing database filename"
-        );
+                'success' => false,
+                'error' => "Missing database filename"
+            );
         }
 
         // Create and secure db directory
@@ -122,16 +126,16 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
         $dirCreated = self::create_db_dir($path);
         if (!$dirCreated) {
             return array(
-            'success' => false,
-            'error' => sprintf('Cannot create path: "%s"', $path)
-        );
+                'success' => false,
+                'error' => sprintf('Cannot create path: "%s"', $path)
+            );
         }
         $dirSecured = self::secure_db_dir($path);
         if (!$dirSecured) {
             return array(
-            'success' => false,
-            'error' => sprintf('Cannot secure path through .htaccess: "%s"', $path)
-        );
+                'success' => false,
+                'error' => sprintf('Cannot secure path through .htaccess: "%s"', $path)
+            );
         }
 
         $conn = $this->createConnection($databaseConfig, $error);

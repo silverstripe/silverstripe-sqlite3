@@ -111,7 +111,7 @@ class SQLite3Connector extends DBConnector
                 case 'array':
                 case 'unknown type':
                 default:
-                    user_error("Cannot bind parameter \"$value\" as it is an unsupported type ($phpType)", E_USER_ERROR);
+                    $this->databaseError("Cannot bind parameter \"$value\" as it is an unsupported type ($phpType)");
                     break;
             }
             $values[] = array(
@@ -176,7 +176,7 @@ class SQLite3Connector extends DBConnector
     public function selectDatabase($name)
     {
         if ($name !== $this->databaseName) {
-            user_error("SQLite3Connector can't change databases. Please create a new database connection", E_USER_ERROR);
+            $this->databaseError("SQLite3Connector can't change databases. Please create a new database connection");
         }
         return true;
     }

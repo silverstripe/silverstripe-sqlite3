@@ -1,14 +1,25 @@
 <?php
 
-// Script called from ConfigureFromEnv.php
-global $databaseConfig;
-if(strpos($databaseConfig['type'], 'SQLite') === 0) {
+// Called from DatabaseAdapterRegistry::autoconfigure($config)
+use SilverStripe\Core\Environment;
+use SilverStripe\SQLite\SQLite3Database;
 
-	if(defined('SS_SQLITE_DATABASE_PATH')) {
-		$databaseConfig['path'] = SS_SQLITE_DATABASE_PATH;
-	}
+if (!isset($databaseConfig)) {
+    global $databaseConfig;
+}
 
-	if(defined('SS_SQLITE_DATABASE_KEY')) {
-		$databaseConfig['key'] = SS_SQLITE_DATABASE_KEY;
-	}
+// Get path
+$path = Environment::getEnv(SQLite3Database::ENV_PATH);
+if ($path) {
+    $databaseConfig['path'] = $path;
+} elseif (defined(SQLite3Database::ENV_PATH)) {
+    $databaseConfig['path'] = constant(SQLite3Database::ENV_PATH);
+}
+
+// Get key
+$key = Environment::getEnv(SQLite3Database::ENV_KEY);
+if ($key) {
+    $databaseConfig['key'] = $key;
+} elseif (defined(SQLite3Database::ENV_KEY)) {
+    $databaseConfig['key'] = constant(SQLite3Database::ENV_KEY);
 }

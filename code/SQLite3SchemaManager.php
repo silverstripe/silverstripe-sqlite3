@@ -73,7 +73,6 @@ class SQLite3SchemaManager extends DBSchemaManager
         $databases = array();
         if ($files !== false) {
             foreach ($files as $file) {
-
                 // Filter non-files
                 if (!is_file("$directory/$file")) {
                     continue;
@@ -172,8 +171,14 @@ class SQLite3SchemaManager extends DBSchemaManager
         return $table;
     }
 
-    public function alterTable($tableName, $newFields = null, $newIndexes = null, $alteredFields = null,
-        $alteredIndexes = null, $alteredOptions = null, $advancedOptions = null
+    public function alterTable(
+        $tableName,
+        $newFields = null,
+        $newIndexes = null,
+        $alteredFields = null,
+        $alteredIndexes = null,
+        $alteredOptions = null,
+        $advancedOptions = null
     ) {
         if ($newFields) {
             foreach ($newFields as $fieldName => $fieldSpec) {
@@ -310,10 +315,12 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
 
         // SQLite doesn't support direct renames through ALTER TABLE
+        $oldColsStr = implode(',', $oldCols);
+        $newColsSpecStr = implode(',', $newColsSpec);
         $queries = array(
             "BEGIN TRANSACTION",
-            "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" (" . implode(',', $newColsSpec) . ")",
-            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT " . implode(',', $oldCols) . " FROM \"$tableName\"",
+            "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" ({$newColsSpecStr})",
+            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT {$oldColsStr} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
             "COMMIT"
@@ -329,9 +336,24 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Recreate the indexes
         foreach ($oldIndexList as $indexName => $indexSpec) {
-            // Rename columns to new columns
-            $indexSpec['value'] = preg_replace("/\"$oldName\"/i", "\"$newName\"", $indexSpec['value']);
-            $this->createIndex($tableName, $indexName, $indexSpec);
+            // Map index columns
+            $columns = array_filter(array_map(function ($column) use ($newName, $oldName) {
+                // Unchanged
+                if ($column !== $oldName) {
+                    return $column;
+                }
+                // Skip obsolete fields
+                if (stripos($newName, '_obsolete_') === 0) {
+                    return null;
+                }
+                return $newName;
+            }, $indexSpec['columns']));
+
+            // Create index if column count unchanged
+            if (count($columns) === count($indexSpec['columns'])) {
+                $indexSpec['columns'] = $columns;
+                $this->createIndex($tableName, $indexName, $indexSpec);
+            }
         }
     }
 
@@ -344,8 +366,10 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         $fieldList = array();
         if ($sqlCreate && $sqlCreate['sql']) {
-            preg_match('/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
-                $sqlCreate['sql'], $matches
+            preg_match(
+                '/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
+                $sqlCreate['sql'],
+                $matches
             );
             $fields = isset($matches[1])
                 ? preg_split('/,(?=(?:[^\'"]*$)|(?:[^\'"]*[\'"][^\'"]*[\'"][^\'"]*)*$)/x', $matches[1])
@@ -411,7 +435,6 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Enumerate each index and related fields
         foreach ($this->query("PRAGMA index_list(\"$table\")") as $index) {
-
             // The SQLite internal index name, not the actual Silverstripe name
             $indexName = $index["name"];
             $indexType = $index['unique'] ? 'unique' : 'index';
@@ -501,7 +524,9 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Ensure the cache table exists
         if (empty($this->enum_map)) {
-            $this->query("CREATE TABLE IF NOT EXISTS \"SQLiteEnums\" (\"TableColumn\" TEXT PRIMARY KEY, \"EnumList\" TEXT)");
+            $this->query(
+                "CREATE TABLE IF NOT EXISTS \"SQLiteEnums\" (\"TableColumn\" TEXT PRIMARY KEY, \"EnumList\" TEXT)"
+            );
         }
 
         // Ensure the table row exists
