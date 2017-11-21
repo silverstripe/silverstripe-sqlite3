@@ -228,6 +228,8 @@ class SQLite3Database extends SS_Database {
 	public function searchEngine($classesToSearch, $keywords, $start, $pageLength, $sortBy = "Relevance DESC",
 		$extraFilter = "", $booleanSearch = false, $alternativeFileFilter = "", $invertedMatch = false
 	) {
+		$start = (int)$start;
+		$pageLength = (int)$pageLength;
 		$keywords = $this->escapeString(str_replace(array('*','+','-','"','\''), '', $keywords));
 		$htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
@@ -249,7 +251,7 @@ class SQLite3Database extends SS_Database {
 			$extraFilters['File'] .= " AND ShowInSearch <> 0";
 		}
 
-		$limit = $start . ", " . (int) $pageLength;
+		$limit = $start . ", " . $pageLength;
 
 		$notMatch = $invertedMatch ? "NOT " : "";
 		if($keywords) {
