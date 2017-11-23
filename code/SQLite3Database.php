@@ -21,6 +21,16 @@ class SQLite3Database extends Database
     use Configurable;
 
     /**
+     * Global environment config for setting 'path'
+     */
+    const ENV_PATH = 'SS_SQLITE_DATABASE_PATH';
+
+    /**
+     * Global environment config for setting 'key'
+     */
+    const ENV_KEY = 'SS_SQLITE_DATABASE_KEY';
+
+    /**
      * Extension added to every database name
      *
      * @config
@@ -178,7 +188,8 @@ class SQLite3Database extends Database
      *
      * @return string|null
      */
-    public function getPath() {
+    public function getPath()
+    {
         if ($this->getLivesInMemory()) {
             return null;
         }
@@ -278,14 +289,22 @@ class SQLite3Database extends Database
      * @param bool $invertedMatch
      * @return PaginatedList DataObjectSet of result pages
      */
-    public function searchEngine($classesToSearch, $keywords, $start, $pageLength, $sortBy = "Relevance DESC",
-        $extraFilter = "", $booleanSearch = false, $alternativeFileFilter = "", $invertedMatch = false
+    public function searchEngine(
+        $classesToSearch,
+        $keywords,
+        $start,
+        $pageLength,
+        $sortBy = "Relevance DESC",
+        $extraFilter = "",
+        $booleanSearch = false,
+        $alternativeFileFilter = "",
+        $invertedMatch = false
     ) {
         $keywords = $this->escapeString(str_replace(array('*', '+', '-', '"', '\''), '', $keywords));
         $htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
         $pageClass = 'SilverStripe\\CMS\\Model\\SiteTree';
-		$fileClass = 'SilverStripe\\Assets\\File';
+        $fileClass = 'SilverStripe\\Assets\\File';
 
         $extraFilters = array($pageClass => '', $fileClass => '');
 
@@ -311,17 +330,24 @@ class SQLite3Database extends Database
 
         $notMatch = $invertedMatch ? "NOT " : "";
         if ($keywords) {
-            $match[$pageClass] = "
-				(Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
-				Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
-			";
+            $match[$pageClass] =
+                "(Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%'"
+                . " OR MetaDescription LIKE '%$keywords%' OR Title LIKE '%$htmlEntityKeywords%'"
+                . " OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%'"
+                . " OR MetaDescription LIKE '%$htmlEntityKeywords%')";
             $fileClassSQL = Convert::raw2sql($fileClass);
-            $match[$fileClass] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = '$fileClassSQL'";
+            $match[$fileClass] =
+                "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = '$fileClassSQL'";
 
             // We make the relevance search by converting a boolean mode search into a normal one
             $relevanceKeywords = $keywords;
             $htmlEntityRelevanceKeywords = $htmlEntityKeywords;
-            $relevance[$pageClass] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
+            $relevance[$pageClass] =
+                "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%'"
+                . " OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%')"
+                . " + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%'"
+                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescriptio "
+                . " LIKE '%$htmlEntityRelevanceKeywords%')";
             $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
             $relevance[$pageClass] = $relevance[$fileClass] = 1;
@@ -464,7 +490,12 @@ class SQLite3Database extends Database
         $this->query("DELETE FROM \"$table\"");
     }
 
-    public function comparisonClause($field, $value, $exact = false, $negate = false, $caseSensitive = null,
+    public function comparisonClause(
+        $field,
+        $value,
+        $exact = false,
+        $negate = false,
+        $caseSensitive = null,
         $parameterised = false
     ) {
         if ($exact && !$caseSensitive) {

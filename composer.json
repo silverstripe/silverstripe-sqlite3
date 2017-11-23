@@ -30,6 +30,10 @@
 			"SilverStripe\\SQLite\\": "code/"
 		}
 	},
+    "scripts": {
+        "lint": "phpcs code/ *.php",
+        "lint-clean": "phpcbf code/ *.php"
+    },
     "minimum-stability": "dev",
     "prefer-stable": true
 }
