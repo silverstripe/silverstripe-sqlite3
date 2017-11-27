@@ -20,9 +20,9 @@
 	"require-dev": {
 		"phpunit/phpunit": "^5.7"
 	},
-	"extra": {
+    "extra": {
 		"branch-alias": {
-			"dev-master": "2.1.x-dev"
+			"2.x-dev": "2.2.x-dev"
 		}
 	},
 	"autoload": {
