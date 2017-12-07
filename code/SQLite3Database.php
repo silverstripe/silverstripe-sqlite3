@@ -300,6 +300,8 @@ class SQLite3Database extends Database
         $alternativeFileFilter = "",
         $invertedMatch = false
     ) {
+        $start = (int)$start;
+        $pageLength = (int)$pageLength;
         $keywords = $this->escapeString(str_replace(array('*', '+', '-', '"', '\''), '', $keywords));
         $htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
@@ -326,7 +328,7 @@ class SQLite3Database extends Database
             $extraFilters[$fileClass] .= " AND ShowInSearch <> 0";
         }
 
-        $limit = $start . ", " . (int) $pageLength;
+        $limit = $start . ", " . $pageLength;
 
         $notMatch = $invertedMatch ? "NOT " : "";
         if ($keywords) {
