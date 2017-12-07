@@ -74,7 +74,6 @@ class SQLite3SchemaManager extends DBSchemaManager
         $databases = array();
         if ($files !== false) {
             foreach ($files as $file) {
-
                 // Filter non-files
                 if (!is_file("$directory/$file")) {
                     continue;
@@ -173,8 +172,14 @@ class SQLite3SchemaManager extends DBSchemaManager
         return $table;
     }
 
-    public function alterTable($tableName, $newFields = null, $newIndexes = null, $alteredFields = null,
-        $alteredIndexes = null, $alteredOptions = null, $advancedOptions = null
+    public function alterTable(
+        $tableName,
+        $newFields = null,
+        $newIndexes = null,
+        $alteredFields = null,
+        $alteredIndexes = null,
+        $alteredOptions = null,
+        $advancedOptions = null
     ) {
         if ($newFields) {
             foreach ($newFields as $fieldName => $fieldSpec) {
@@ -345,8 +350,10 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         $fieldList = array();
         if ($sqlCreate && $sqlCreate['sql']) {
-            preg_match('/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
-                $sqlCreate['sql'], $matches
+            preg_match(
+                '/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
+                $sqlCreate['sql'],
+                $matches
             );
             $fields = isset($matches[1])
                 ? preg_split('/,(?=(?:[^\'"]*$)|(?:[^\'"]*[\'"][^\'"]*[\'"][^\'"]*)*$)/x', $matches[1])
@@ -425,7 +432,6 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Enumerate each index and related fields
         foreach ($this->query("PRAGMA index_list(\"$table\")") as $index) {
-
             // The SQLite internal index name, not the actual Silverstripe name
             $indexName = $index["name"];
             $indexType = $index['unique'] ? 'unique' : 'index';

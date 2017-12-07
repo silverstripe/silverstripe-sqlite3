@@ -178,7 +178,8 @@ class SQLite3Database extends Database
      *
      * @return string|null
      */
-    public function getPath() {
+    public function getPath()
+    {
         if ($this->getLivesInMemory()) {
             return null;
         }
@@ -278,14 +279,24 @@ class SQLite3Database extends Database
      * @param bool $invertedMatch
      * @return PaginatedList DataObjectSet of result pages
      */
-    public function searchEngine($classesToSearch, $keywords, $start, $pageLength, $sortBy = "Relevance DESC",
-        $extraFilter = "", $booleanSearch = false, $alternativeFileFilter = "", $invertedMatch = false
+    public function searchEngine(
+        $classesToSearch,
+        $keywords,
+        $start,
+        $pageLength,
+        $sortBy = "Relevance DESC",
+        $extraFilter = "",
+        $booleanSearch = false,
+        $alternativeFileFilter = "",
+        $invertedMatch = false
     ) {
-        $keywords = $this->escapeString(str_replace(array('*', '+', '-', '"', '\''), '', $keywords));
+        $start = (int)$start;
+        $pageLength = (int)$pageLength;
+        $keywords = $this->escapeString(str_replace(array('*','+','-','"','\''), '', $keywords));
         $htmlEntityKeywords = htmlentities(utf8_decode($keywords));
 
         $pageClass = 'SilverStripe\\CMS\\Model\\SiteTree';
-		$fileClass = 'SilverStripe\\Assets\\File';
+        $fileClass = 'SilverStripe\\Assets\\File';
 
         $extraFilters = array($pageClass => '', $fileClass => '');
 
@@ -307,14 +318,14 @@ class SQLite3Database extends Database
             $extraFilters[$fileClass] .= " AND ShowInSearch <> 0";
         }
 
-        $limit = $start . ", " . (int) $pageLength;
+        $limit = $start . ", " . $pageLength;
 
         $notMatch = $invertedMatch ? "NOT " : "";
         if ($keywords) {
             $match[$pageClass] = "
-				(Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
-				Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
-			";
+                (Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
+                Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
+            ";
             $fileClassSQL = Convert::raw2sql($fileClass);
             $match[$fileClass] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = '$fileClassSQL'";
 
@@ -464,7 +475,12 @@ class SQLite3Database extends Database
         $this->query("DELETE FROM \"$table\"");
     }
 
-    public function comparisonClause($field, $value, $exact = false, $negate = false, $caseSensitive = null,
+    public function comparisonClause(
+        $field,
+        $value,
+        $exact = false,
+        $negate = false,
+        $caseSensitive = null,
         $parameterised = false
     ) {
         if ($exact && !$caseSensitive) {

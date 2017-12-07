@@ -108,13 +108,13 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             return array(
             'success' => false,
             'error' => "Missing directory path"
-        );
+            );
         }
         if (empty($databaseConfig['database'])) {
             return array(
             'success' => false,
             'error' => "Missing database filename"
-        );
+            );
         }
 
         // Create and secure db directory
@@ -124,14 +124,14 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
             return array(
             'success' => false,
             'error' => sprintf('Cannot create path: "%s"', $path)
-        );
+            );
         }
         $dirSecured = self::secure_db_dir($path);
         if (!$dirSecured) {
             return array(
             'success' => false,
             'error' => sprintf('Cannot secure path through .htaccess: "%s"', $path)
-        );
+            );
         }
 
         $conn = $this->createConnection($databaseConfig, $error);
