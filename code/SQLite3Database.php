@@ -348,7 +348,7 @@ class SQLite3Database extends Database
                 "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%'"
                 . " OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%')"
                 . " + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%'"
-                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescriptio "
+                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription "
                 . " LIKE '%$htmlEntityRelevanceKeywords%')";
             $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
