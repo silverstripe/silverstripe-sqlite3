@@ -61,6 +61,11 @@ class SQLite3Database extends Database
     protected $livesInMemory = false;
 
     /**
+     * @var bool
+     */
+    protected $transactionNesting = 0;
+
+    /**
      * List of default pragma values
      *
      * @todo Migrate to SS config
@@ -465,7 +470,12 @@ class SQLite3Database extends Database
 
     public function transactionStart($transaction_mode = false, $session_characteristics = false)
     {
-        $this->query('BEGIN');
+        if ($this->transactionNesting > 0) {
+            $this->transactionSavepoint('NESTEDTRANSACTION' . $this->transactionNesting);
+        } else {
+            $this->query('BEGIN');
+        }
+        ++$this->transactionNesting;
     }
 
     public function transactionSavepoint($savepoint)
@@ -478,13 +488,22 @@ class SQLite3Database extends Database
         if ($savepoint) {
             $this->query("ROLLBACK TO $savepoint;");
         } else {
-            $this->query('ROLLBACK;');
+            --$this->transactionNesting;
+            if ($this->transactionNesting > 0) {
+                $this->transactionRollback('NESTEDTRANSACTION' . $this->transactionNesting);
+            } else {
+                $this->query('ROLLBACK;');
+            }
         }
     }
 
     public function transactionEnd($chain = false)
     {
-        $this->query('COMMIT;');
+        --$this->transactionNesting;
+        if ($this->transactionNesting <= 0) {
+            $this->transactionNesting = 0;
+            $this->query('COMMIT;');
+        }
     }
 
     public function clearTable($table)
