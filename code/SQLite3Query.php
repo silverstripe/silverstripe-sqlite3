@@ -53,18 +53,13 @@ class SQLite3Query extends Query
         return $result;
     }
 
-    /**
-     * @todo This looks terrible but there is no SQLite3::get_num_rows() implementation
-     */
     public function numRecords()
     {
-        $this->handle->reset();
-        $c=0;
-        while ($this->handle->fetchArray()) {
-            $c++;
+        $columns = $this->handle->numColumns();
+        if ($columns && $this->handle->columnType(0) != SQLITE3_NULL) {
+            return $columns;
         }
-        $this->handle->reset();
-        return $c;
+        return 0;
     }
 
     public function nextRecord()
