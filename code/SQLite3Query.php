@@ -43,14 +43,11 @@ class SQLite3Query extends Query
         }
     }
 
-    public function seek($row)
+    public function getIterator()
     {
-        $this->handle->reset();
-        $i=0;
-        while ($i <= $row && $result = @$this->handle->fetchArray(SQLITE3_ASSOC)) {
-            $i++;
+        while ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
+            yield $data;
         }
-        return $result;
     }
 
     /**
@@ -65,14 +62,5 @@ class SQLite3Query extends Query
         }
         $this->handle->reset();
         return $c;
-    }
-
-    public function nextRecord()
-    {
-        if ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
-            return $data;
-        } else {
-            return false;
-        }
     }
 }
