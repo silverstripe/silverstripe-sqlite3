@@ -61,6 +61,11 @@ class SQLite3Database extends Database
     protected $livesInMemory = false;
 
     /**
+     * @var bool
+     */
+    protected $transactionNesting = 0;
+
+    /**
      * List of default pragma values
      *
      * @todo Migrate to SS config
@@ -348,7 +353,7 @@ class SQLite3Database extends Database
                 "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%'"
                 . " OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%')"
                 . " + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%'"
-                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescriptio "
+                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription "
                 . " LIKE '%$htmlEntityRelevanceKeywords%')";
             $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
@@ -465,7 +470,12 @@ class SQLite3Database extends Database
 
     public function transactionStart($transaction_mode = false, $session_characteristics = false)
     {
-        $this->query('BEGIN');
+        if ($this->transactionNesting > 0) {
+            $this->transactionSavepoint('NESTEDTRANSACTION' . $this->transactionNesting);
+        } else {
+            $this->query('BEGIN');
+        }
+        ++$this->transactionNesting;
     }
 
     public function transactionSavepoint($savepoint)
@@ -475,16 +485,77 @@ class SQLite3Database extends Database
 
     public function transactionRollback($savepoint = false)
     {
+        // Named transaction
         if ($savepoint) {
             $this->query("ROLLBACK TO $savepoint;");
+            return true;
+        }
+
+        // Fail if transaction isn't available
+        if (!$this->transactionNesting) {
+            return false;
+        }
+
+        --$this->transactionNesting;
+        if ($this->transactionNesting > 0) {
+            $this->transactionRollback('NESTEDTRANSACTION' . $this->transactionNesting);
         } else {
             $this->query('ROLLBACK;');
         }
+        return true;
+    }
+
+    public function transactionDepth()
+    {
+        return $this->transactionNesting;
     }
 
     public function transactionEnd($chain = false)
     {
-        $this->query('COMMIT;');
+        // Fail if transaction isn't available
+        if (!$this->transactionNesting) {
+            return false;
+        }
+        --$this->transactionNesting;
+        if ($this->transactionNesting <= 0) {
+            $this->transactionNesting = 0;
+            $this->query('COMMIT;');
+        }
+        return true;
+    }
+
+    /**
+     * In error condition, set transactionNesting to zero
+     */
+    protected function resetTransactionNesting()
+    {
+        $this->transactionNesting = 0;
+    }
+
+    public function query($sql, $errorLevel = E_USER_ERROR)
+    {
+        $this->inspectQuery($sql);
+        return parent::query($sql, $errorLevel);
+    }
+
+    public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
+    {
+        $this->inspectQuery($sql);
+        return parent::preparedQuery($sql, $parameters, $errorLevel);
+    }
+
+    /**
+     * Inspect a SQL query prior to execution
+     *
+     * @param string $sql
+     */
+    protected function inspectQuery($sql)
+    {
+        // Any DDL discards transactions.
+        $isDDL = $this->getConnector()->isQueryDDL($sql);
+        if ($isDDL) {
+            $this->resetTransactionNesting();
+        }
     }
 
     public function clearTable($table)
