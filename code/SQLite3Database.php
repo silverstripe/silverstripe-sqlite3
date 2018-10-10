@@ -470,17 +470,29 @@ class SQLite3Database extends Database
 
     public function transactionStart($transaction_mode = false, $session_characteristics = false)
     {
-        if ($this->transactionNesting > 0) {
-            $this->transactionSavepoint('NESTEDTRANSACTION' . $this->transactionNesting);
+        if ($this->transactionDepth()) {
+            $this->transactionSavepoint($this->getTransactionSavepointName());
         } else {
             $this->query('BEGIN');
         }
-        ++$this->transactionNesting;
+        $this->transactionDepthIncrease();
     }
 
     public function transactionSavepoint($savepoint)
     {
         $this->query("SAVEPOINT \"$savepoint\"");
+    }
+
+    /**
+     * Fetch the name of the current savepoint
+     * {@see transactionDepth} should be greater than zero
+     * or the name will be invalid (because there are none).
+     * 
+     * @return string
+     */
+    protected function getTransactionSavepointName()
+    {
+        return 'NESTEDTRANSACTION' . $this->transactionDepth();
     }
 
     public function transactionRollback($savepoint = false)
@@ -492,13 +504,13 @@ class SQLite3Database extends Database
         }
 
         // Fail if transaction isn't available
-        if (!$this->transactionNesting) {
+        if (!$this->transactionDepth()) {
             return false;
         }
 
-        --$this->transactionNesting;
-        if ($this->transactionNesting > 0) {
-            $this->transactionRollback('NESTEDTRANSACTION' . $this->transactionNesting);
+        $this->transactionDepthDecrease();
+        if ($this->transactionDepth()) {
+            $this->transactionRollback($this->getTransactionSavepointName());
         } else {
             $this->query('ROLLBACK;');
         }
@@ -513,15 +525,28 @@ class SQLite3Database extends Database
     public function transactionEnd($chain = false)
     {
         // Fail if transaction isn't available
-        if (!$this->transactionNesting) {
+        if (!$this->transactionDepth()) {
             return false;
         }
-        --$this->transactionNesting;
-        if ($this->transactionNesting <= 0) {
-            $this->transactionNesting = 0;
-            $this->query('COMMIT;');
-        }
+        $this->query('COMMIT;');
+        $this->transactionDepthDecrease();
         return true;
+    }
+
+    /**
+     * Increase the nested transaction level by one
+     */
+    protected function transactionDepthIncrease()
+    {
+        ++$this->transactionNesting;
+    }
+
+    /**
+     * Decrease the nested transaction level by one
+     */
+    protected function transactionDepthDecrease()
+    {
+        --$this->transactionNesting;
     }
 
     /**
@@ -534,28 +559,22 @@ class SQLite3Database extends Database
 
     public function query($sql, $errorLevel = E_USER_ERROR)
     {
-        $this->inspectQuery($sql);
         return parent::query($sql, $errorLevel);
     }
 
     public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
     {
-        $this->inspectQuery($sql);
         return parent::preparedQuery($sql, $parameters, $errorLevel);
     }
 
     /**
      * Inspect a SQL query prior to execution
-     *
+     * @deprecated 2..3
      * @param string $sql
      */
     protected function inspectQuery($sql)
     {
-        // Any DDL discards transactions.
-        $isDDL = $this->getConnector()->isQueryDDL($sql);
-        if ($isDDL) {
-            $this->resetTransactionNesting();
-        }
+        // no-op
     }
 
     public function clearTable($table)
