@@ -2,10 +2,11 @@
 
 namespace SilverStripe\SQLite;
 
+use Exception;
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\Debug;
 use SilverStripe\ORM\Connect\DBSchemaManager;
-use Exception;
+use SQLite3;
 
 /**
  * SQLite schema manager class
@@ -540,7 +541,18 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Set default
         if (!empty($values['default'])) {
-            $default = str_replace(array('"', "'", "\\", "\0"), "", $values['default']);
+            /*
+            On escaping strings:
+
+            https://www.sqlite.org/lang_expr.html
+            "A string constant is formed by enclosing the string in single quotes ('). A single quote within
+            the string can be encoded by putting two single quotes in a row - as in Pascal. C-style escapes
+            using the backslash character are not supported because they are not standard SQL."
+
+            Also, there is a nifty PHP function for this. However apparently one must still be cautious of
+            the null character ('\0' or 0x0), as per https://bugs.php.net/bug.php?id=63419
+            */
+            $default = SQLite3::escapeString(str_replace("\0", "", $values['default']));
             return "TEXT DEFAULT '$default'";
         } else {
             return 'TEXT';
