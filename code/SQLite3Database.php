@@ -491,7 +491,7 @@ class SQLite3Database extends Database
 
     /**
      * Fetch the name of the most recent savepoint
-     * 
+     *
      * @return string
      */
     protected function getTransactionSavepointName()

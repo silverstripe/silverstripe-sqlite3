@@ -286,7 +286,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Then alter the table column
         $database = $this->database;
-        $database->withTransaction(function() use ($database, $queries, $indexList) {
+        $database->withTransaction(function () use ($database, $queries, $indexList) {
             foreach ($queries as $query) {
                 $database->query($query . ';');
             }
@@ -330,7 +330,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Then alter the table column
         $database = $this->database;
-        $database->withTransaction(function() use ($database, $queries) {
+        $database->withTransaction(function () use ($database, $queries) {
             foreach ($queries as $query) {
                 $database->query($query . ';');
             }
@@ -429,6 +429,15 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function indexKey($table, $index, $spec)
     {
         return $this->buildSQLiteIndexName($table, $index);
+    }
+
+    protected function convertIndexSpec($indexSpec)
+    {
+        $supportedIndexTypes = ['index', 'unique'];
+        if (isset($indexSpec['type']) && !in_array($indexSpec['type'], $supportedIndexTypes)) {
+            $indexSpec['type'] = 'index';
+        }
+        return parent::convertIndexSpec($indexSpec);
     }
 
     public function indexList($table)
