@@ -611,7 +611,7 @@ class SQLite3Database extends Database
 
     /**
      * Inspect a SQL query prior to execution
-     * @deprecated 2..3
+     * @deprecated 2.2.0:3.0.0
      * @param string $sql
      */
     protected function inspectQuery($sql)
