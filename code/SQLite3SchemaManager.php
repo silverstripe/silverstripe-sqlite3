@@ -276,21 +276,22 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
 
         $queries = array(
-            "BEGIN TRANSACTION",
             "CREATE TABLE \"{$tableName}_alterfield_{$fieldName}\"(" . implode(',', $newColsSpec) . ")",
             "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" SELECT {$fieldNameList} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_alterfield_{$fieldName}\" RENAME TO \"$tableName\"",
-            "COMMIT"
         );
 
         // Remember original indexes
         $indexList = $this->indexList($tableName);
 
         // Then alter the table column
-        foreach ($queries as $query) {
-            $this->query($query.';');
-        }
+        $database = $this->database;
+        $database->withTransaction(function () use ($database, $queries, $indexList) {
+            foreach ($queries as $query) {
+                $database->query($query . ';');
+            }
+        });
 
         // Recreate the indexes
         foreach ($indexList as $indexName => $indexSpec) {
@@ -319,21 +320,22 @@ class SQLite3SchemaManager extends DBSchemaManager
         $oldColsStr = implode(',', $oldCols);
         $newColsSpecStr = implode(',', $newColsSpec);
         $queries = array(
-            "BEGIN TRANSACTION",
             "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" ({$newColsSpecStr})",
             "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT {$oldColsStr} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
-            "COMMIT"
         );
 
         // Remember original indexes
         $oldIndexList = $this->indexList($tableName);
 
         // Then alter the table column
-        foreach ($queries as $query) {
-            $this->query($query.';');
-        }
+        $database = $this->database;
+        $database->withTransaction(function () use ($database, $queries) {
+            foreach ($queries as $query) {
+                $database->query($query . ';');
+            }
+        });
 
         // Recreate the indexes
         foreach ($oldIndexList as $indexName => $indexSpec) {
@@ -428,6 +430,15 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function indexKey($table, $index, $spec)
     {
         return $this->buildSQLiteIndexName($table, $index);
+    }
+
+    protected function convertIndexSpec($indexSpec)
+    {
+        $supportedIndexTypes = ['index', 'unique'];
+        if (isset($indexSpec['type']) && !in_array($indexSpec['type'], $supportedIndexTypes)) {
+            $indexSpec['type'] = 'index';
+        }
+        return parent::convertIndexSpec($indexSpec);
     }
 
     public function indexList($table)
