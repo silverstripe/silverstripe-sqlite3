@@ -61,6 +61,16 @@ class SQLite3Database extends Database
     protected $livesInMemory = false;
 
     /**
+     * @var bool
+     */
+    protected $transactionNesting = 0;
+
+    /**
+     * @var array
+     */
+    protected $transactionSavepoints = [];
+
+    /**
      * List of default pragma values
      *
      * @todo Migrate to SS config
@@ -348,7 +358,7 @@ class SQLite3Database extends Database
                 "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%'"
                 . " OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%')"
                 . " + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%'"
-                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescriptio "
+                . " OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription "
                 . " LIKE '%$htmlEntityRelevanceKeywords%')";
             $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
@@ -465,26 +475,148 @@ class SQLite3Database extends Database
 
     public function transactionStart($transaction_mode = false, $session_characteristics = false)
     {
-        $this->query('BEGIN');
+        if ($this->transactionDepth()) {
+            $this->transactionSavepoint('NESTEDTRANSACTION' . $this->transactionDepth());
+        } else {
+            $this->query('BEGIN');
+            $this->transactionDepthIncrease();
+        }
     }
 
     public function transactionSavepoint($savepoint)
     {
         $this->query("SAVEPOINT \"$savepoint\"");
+        $this->transactionDepthIncrease($savepoint);
+    }
+
+    /**
+     * Fetch the name of the most recent savepoint
+     *
+     * @return string
+     */
+    protected function getTransactionSavepointName()
+    {
+        return end($this->transactionSavepoints);
     }
 
     public function transactionRollback($savepoint = false)
     {
+        // Named transaction
         if ($savepoint) {
             $this->query("ROLLBACK TO $savepoint;");
+            $this->transactionDepthDecrease();
+            return true;
+        }
+
+        // Fail if transaction isn't available
+        if (!$this->transactionDepth()) {
+            return false;
+        }
+
+        if ($this->transactionIsNested()) {
+            $this->transactionRollback($this->getTransactionSavepointName());
         } else {
             $this->query('ROLLBACK;');
+            $this->transactionDepthDecrease();
         }
+        return true;
+    }
+
+    public function transactionDepth()
+    {
+        return $this->transactionNesting;
     }
 
     public function transactionEnd($chain = false)
     {
-        $this->query('COMMIT;');
+        // Fail if transaction isn't available
+        if (!$this->transactionDepth()) {
+            return false;
+        }
+
+        if ($this->transactionIsNested()) {
+            $savepoint = $this->getTransactionSavepointName();
+            $this->query('RELEASE ' . $savepoint);
+            $this->transactionDepthDecrease();
+        } else {
+            $this->query('COMMIT;');
+            $this->resetTransactionNesting();
+        }
+
+        if ($chain) {
+            $this->transactionStart();
+        }
+
+        return true;
+    }
+
+    /**
+     * Indicate whether or not the current transaction is nested
+     * Returns false if there are no transactions, or the open
+     * transaction is the 'outer' transaction, i.e. not nested.
+     *
+     * @return bool
+     */
+    protected function transactionIsNested()
+    {
+        return $this->transactionNesting > 1;
+    }
+
+    /**
+     * Increase the nested transaction level by one
+     * savepoint tracking is optional because BEGIN
+     * opens a transaction, but is not a named reference
+     *
+     * @param string $savepoint
+     */
+    protected function transactionDepthIncrease($savepoint = null)
+    {
+        ++$this->transactionNesting;
+        if ($savepoint) {
+            array_push($this->transactionSavepoints, $savepoint);
+        }
+    }
+
+    /**
+     * Decrease the nested transaction level by one
+     * and reduce the savepoint tracking if we are
+     * nesting, as the last one is no longer valid
+     */
+    protected function transactionDepthDecrease()
+    {
+        if ($this->transactionIsNested()) {
+            array_pop($this->transactionSavepoints);
+        }
+        --$this->transactionNesting;
+    }
+
+    /**
+     * In error condition, set transactionNesting to zero
+     */
+    protected function resetTransactionNesting()
+    {
+        $this->transactionNesting = 0;
+        $this->transactionSavepoints = [];
+    }
+
+    public function query($sql, $errorLevel = E_USER_ERROR)
+    {
+        return parent::query($sql, $errorLevel);
+    }
+
+    public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
+    {
+        return parent::preparedQuery($sql, $parameters, $errorLevel);
+    }
+
+    /**
+     * Inspect a SQL query prior to execution
+     * @deprecated 2.2.0:3.0.0
+     * @param string $sql
+     */
+    protected function inspectQuery($sql)
+    {
+        // no-op
     }
 
     public function clearTable($table)

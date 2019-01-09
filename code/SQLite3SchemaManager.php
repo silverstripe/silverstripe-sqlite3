@@ -2,10 +2,11 @@
 
 namespace SilverStripe\SQLite;
 
+use Exception;
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\Debug;
 use SilverStripe\ORM\Connect\DBSchemaManager;
-use Exception;
+use SQLite3;
 
 /**
  * SQLite schema manager class
@@ -275,21 +276,22 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
 
         $queries = array(
-            "BEGIN TRANSACTION",
             "CREATE TABLE \"{$tableName}_alterfield_{$fieldName}\"(" . implode(',', $newColsSpec) . ")",
             "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" SELECT {$fieldNameList} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_alterfield_{$fieldName}\" RENAME TO \"$tableName\"",
-            "COMMIT"
         );
 
         // Remember original indexes
         $indexList = $this->indexList($tableName);
 
         // Then alter the table column
-        foreach ($queries as $query) {
-            $this->query($query.';');
-        }
+        $database = $this->database;
+        $database->withTransaction(function () use ($database, $queries, $indexList) {
+            foreach ($queries as $query) {
+                $database->query($query . ';');
+            }
+        });
 
         // Recreate the indexes
         foreach ($indexList as $indexName => $indexSpec) {
@@ -318,21 +320,22 @@ class SQLite3SchemaManager extends DBSchemaManager
         $oldColsStr = implode(',', $oldCols);
         $newColsSpecStr = implode(',', $newColsSpec);
         $queries = array(
-            "BEGIN TRANSACTION",
             "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" ({$newColsSpecStr})",
             "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT {$oldColsStr} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
-            "COMMIT"
         );
 
         // Remember original indexes
         $oldIndexList = $this->indexList($tableName);
 
         // Then alter the table column
-        foreach ($queries as $query) {
-            $this->query($query.';');
-        }
+        $database = $this->database;
+        $database->withTransaction(function () use ($database, $queries) {
+            foreach ($queries as $query) {
+                $database->query($query . ';');
+            }
+        });
 
         // Recreate the indexes
         foreach ($oldIndexList as $indexName => $indexSpec) {
@@ -427,6 +430,15 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function indexKey($table, $index, $spec)
     {
         return $this->buildSQLiteIndexName($table, $index);
+    }
+
+    protected function convertIndexSpec($indexSpec)
+    {
+        $supportedIndexTypes = ['index', 'unique'];
+        if (isset($indexSpec['type']) && !in_array($indexSpec['type'], $supportedIndexTypes)) {
+            $indexSpec['type'] = 'index';
+        }
+        return parent::convertIndexSpec($indexSpec);
     }
 
     public function indexList($table)
@@ -540,7 +552,18 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Set default
         if (!empty($values['default'])) {
-            $default = str_replace(array('"', "'", "\\", "\0"), "", $values['default']);
+            /*
+            On escaping strings:
+
+            https://www.sqlite.org/lang_expr.html
+            "A string constant is formed by enclosing the string in single quotes ('). A single quote within
+            the string can be encoded by putting two single quotes in a row - as in Pascal. C-style escapes
+            using the backslash character are not supported because they are not standard SQL."
+
+            Also, there is a nifty PHP function for this. However apparently one must still be cautious of
+            the null character ('\0' or 0x0), as per https://bugs.php.net/bug.php?id=63419
+            */
+            $default = SQLite3::escapeString(str_replace("\0", "", $values['default']));
             return "TEXT DEFAULT '$default'";
         } else {
             return 'TEXT';
