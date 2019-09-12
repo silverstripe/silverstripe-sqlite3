@@ -43,6 +43,18 @@ class SQLite3Query extends Query
         }
     }
 
+    public function map()
+    {
+        $this->handle->reset();
+        $column = [];
+        while ($record = @$this->handle->fetchArray(SQLITE3_ASSOC)) {
+            $key = reset($record);
+            $val = end($record);
+            $column[$key] = $val;
+        }
+        return $column;
+    }
+
     public function seek($row)
     {
         $this->handle->reset();
