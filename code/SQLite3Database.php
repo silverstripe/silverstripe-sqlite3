@@ -460,6 +460,19 @@ class SQLite3Database extends Database
         return version_compare($this->getVersion(), '3.6', '>=');
     }
 
+    /**
+     * Does this database support transaction modes?
+     *
+     * SQLite doesn't support transaction modes.
+     *
+     * @param string $mode
+     * @return bool
+     */
+    public function supportsTransactionMode(string $mode): bool
+    {
+        return false;
+    }
+
     public function supportsExtensions($extensions = array('partitions', 'tablespaces', 'clustering'))
     {
         if (isset($extensions['partitions'])) {
