@@ -1,6 +1,7 @@
 # SQLite3 Module
 
 [![Build Status](https://travis-ci.org/silverstripe-labs/silverstripe-sqlite3.png?branch=master)](https://travis-ci.org/silverstripe-labs/silverstripe-sqlite3)
+[![CI](https://github.com/silverstripe/silverstripe-sqlite3/actions/workflows/ci.yml/badge.svg)](https://github.com/silverstripe/silverstripe-sqlite3/actions/workflows/ci.yml)
 
 ## Maintainer Contact
 
