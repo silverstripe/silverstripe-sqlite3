@@ -2,6 +2,11 @@
 <ruleset name="SilverStripe">
 	<description>CodeSniffer ruleset for SilverStripe coding conventions.</description>
 
+	<file>code/</file>
+	<file>_config.php</file>
+	<file>_configure_database.php</file>
+	<file>_register_database.php</file>
+
 	<!-- base rules are PSR-2 -->
 	<rule ref="PSR2" >
 		<!-- Current exclusions -->
