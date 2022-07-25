@@ -411,7 +411,7 @@ class SQLite3Database extends Database
             $queries[$class]->setFrom('"'.DataObject::getSchema()->baseDataTable($class).'"');
             $queries[$class]->setSelect(array());
             foreach ($select[$class] as $clause) {
-                if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause, $matches)) {
+                if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause ?? '', $matches)) {
                     $queries[$class]->selectField($matches[1], $matches[2]);
                 } else {
                     $queries[$class]->selectField(str_replace('"', '', $clause));
@@ -672,7 +672,7 @@ class SQLite3Database extends Database
 
     public function formattedDatetimeClause($date, $format)
     {
-        preg_match_all('/%(.)/', $format, $matches);
+        preg_match_all('/%(.)/', $format ?? '', $matches);
         foreach ($matches[1] as $match) {
             if (array_search($match, array('Y', 'm', 'd', 'H', 'i', 's', 'U')) === false) {
                 user_error('formattedDatetimeClause(): unsupported format character %' . $match, E_USER_WARNING);
@@ -694,9 +694,9 @@ class SQLite3Database extends Database
             $modifiers[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date)) {
+        if (preg_match('/^now$/i', $date ?? '')) {
             $date = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date ?? '')) {
             $date = "'$date'";
         }
 
@@ -711,9 +711,9 @@ class SQLite3Database extends Database
             $modifiers[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date)) {
+        if (preg_match('/^now$/i', $date ?? '')) {
             $date = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date ?? '')) {
             $date = "'$date'";
         }
 
@@ -733,15 +733,15 @@ class SQLite3Database extends Database
             $modifiers2[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date1)) {
+        if (preg_match('/^now$/i', $date1 ?? '')) {
             $date1 = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date1)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date1 ?? '')) {
             $date1 = "'$date1'";
         }
 
-        if (preg_match('/^now$/i', $date2)) {
+        if (preg_match('/^now$/i', $date2 ?? '')) {
             $date2 = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date2)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date2 ?? '')) {
             $date2 = "'$date2'";
         }
 
