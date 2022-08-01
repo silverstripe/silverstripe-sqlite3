@@ -319,7 +319,8 @@ class SQLite3SchemaManager extends DBSchemaManager
         $queries = array(
             "BEGIN TRANSACTION",
             "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" (" . implode(',', $newColsSpec) . ")",
-            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT " . implode(',', $oldCols) . " FROM \"$tableName\"",
+            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT " . implode(',', $oldCols) .
+                " FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
             "COMMIT"
@@ -521,7 +522,8 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Ensure the cache table exists
         if (empty($this->enum_map)) {
-            $this->query("CREATE TABLE IF NOT EXISTS \"SQLiteEnums\" (\"TableColumn\" TEXT PRIMARY KEY, \"EnumList\" TEXT)");
+            $str = "CREATE TABLE IF NOT EXISTS \"SQLiteEnums\" (\"TableColumn\" TEXT PRIMARY KEY, \"EnumList\" TEXT)";
+            $this->query($str);
         }
 
         // Ensure the table row exists
