@@ -41,7 +41,11 @@ class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
                     if (empty($databaseConfig['key'])) {
                         $conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE);
                     } else {
-                        $conn = @new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $databaseConfig['key']);
+                        $conn = @new SQLite3(
+                            $file,
+                            SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE,
+                            $databaseConfig['key']
+                        );
                     }
                     break;
                 case 'SQLite3PDODatabase':

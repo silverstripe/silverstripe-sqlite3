@@ -323,16 +323,22 @@ class SQLite3Database extends Database
         $notMatch = $invertedMatch ? "NOT " : "";
         if ($keywords) {
             $match[$pageClass] = "
-                (Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR MetaDescription LIKE '%$keywords%' OR
-                Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE '%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
+                (Title LIKE '%$keywords%' OR MenuTitle LIKE '%$keywords%' OR Content LIKE '%$keywords%' OR " .
+                "MetaDescription LIKE '%$keywords%' OR " .
+                "Title LIKE '%$htmlEntityKeywords%' OR MenuTitle LIKE '%$htmlEntityKeywords%' OR Content LIKE " .
+                "'%$htmlEntityKeywords%' OR MetaDescription LIKE '%$htmlEntityKeywords%')
             ";
             $fileClassSQL = Convert::raw2sql($fileClass);
-            $match[$fileClass] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND ClassName = '$fileClassSQL'";
+            $match[$fileClass] = "(Name LIKE '%$keywords%' OR Title LIKE '%$keywords%') AND " .
+            "ClassName = '$fileClassSQL'";
 
             // We make the relevance search by converting a boolean mode search into a normal one
             $relevanceKeywords = $keywords;
             $htmlEntityRelevanceKeywords = $htmlEntityKeywords;
-            $relevance[$pageClass] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE '%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE '%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
+            $relevance[$pageClass] = "(Title LIKE '%$relevanceKeywords%' OR MenuTitle LIKE '%$relevanceKeywords%' OR " .
+            "Content LIKE '%$relevanceKeywords%' OR MetaDescription LIKE '%$relevanceKeywords%') + (Title LIKE " .
+            "'%$htmlEntityRelevanceKeywords%' OR MenuTitle LIKE '%$htmlEntityRelevanceKeywords%' OR Content LIKE " .
+            "'%$htmlEntityRelevanceKeywords%' OR MetaDescription LIKE '%$htmlEntityRelevanceKeywords%')";
             $relevance[$fileClass] = "(Name LIKE '%$relevanceKeywords%' OR Title LIKE '%$relevanceKeywords%')";
         } else {
             $relevance[$pageClass] = $relevance[$fileClass] = 1;
