@@ -17,6 +17,9 @@
 		"silverstripe/framework": "~4.0",
 		"silverstripe/vendor-plugin": "^1.0"
 	},
+	"require-dev": {
+		"squizlabs/php_codesniffer": "^3"
+	},
 	"autoload": {
 		"psr-4": {
 			"SilverStripe\\SQLite\\": "code/"
