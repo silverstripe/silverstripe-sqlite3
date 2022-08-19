@@ -170,7 +170,7 @@ class SQLite3Connector extends DBConnector
 
     public function escapeString($value)
     {
-        return $this->dbConn->escapeString($value);
+        return $this->dbConn->escapeString((string)$value);
     }
 
     public function selectDatabase($name)
