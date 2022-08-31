@@ -48,7 +48,7 @@ class SQLite3Connector extends DBConnector
     public function getLastError()
     {
         $message = $this->dbConn->lastErrorMsg();
-        return $message === 'not an error' ? '' : $message;
+        return $message === 'not an error' ? null : $message;
     }
 
     public function getSelectedDatabase()
