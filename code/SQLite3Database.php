@@ -540,7 +540,7 @@ class SQLite3Database extends Database
         return $this->transactionNesting;
     }
 
-    public function transactionEnd($chain = false)
+    public function transactionEnd(): bool|null
     {
         // Fail if transaction isn't available
         if (!$this->transactionDepth()) {
@@ -554,10 +554,6 @@ class SQLite3Database extends Database
         } else {
             $this->query('COMMIT;');
             $this->resetTransactionNesting();
-        }
-
-        if ($chain) {
-            $this->transactionStart();
         }
 
         return true;
