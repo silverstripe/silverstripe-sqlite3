@@ -72,7 +72,8 @@ class SQLite3Query extends Query
         return $c;
     }
 
-    public function nextRecord()
+    #[\ReturnTypeWillChange]
+    public function getIterator()
     {
         if ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
             return $data;
