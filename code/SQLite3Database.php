@@ -5,7 +5,6 @@ namespace SilverStripe\SQLite;
 use SilverStripe\Assets\File;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Convert;
-use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\Connect\Database;
 use SilverStripe\ORM\DataList;
@@ -120,16 +119,6 @@ class SQLite3Database extends Database
      */
     public function connect($parameters)
     {
-        if (!empty($parameters['memory'])) {
-            Deprecation::notice(
-                '1.4.0',
-                "\$databaseConfig['memory'] is deprecated. Use \$databaseConfig['path'] = ':memory:' instead.",
-                Deprecation::SCOPE_GLOBAL
-            );
-            unset($parameters['memory']);
-            $parameters['path'] = ':memory:';
-        }
-
         //We will store these connection parameters for use elsewhere (ie, unit tests)
         $this->parameters = $parameters;
         $this->schemaManager->flushCache();
@@ -616,16 +605,6 @@ class SQLite3Database extends Database
     public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
     {
         return parent::preparedQuery($sql, $parameters, $errorLevel);
-    }
-
-    /**
-     * Inspect a SQL query prior to execution
-     * @deprecated 2.2.0:3.0.0
-     * @param string $sql
-     */
-    protected function inspectQuery($sql)
-    {
-        // no-op
     }
 
     public function clearTable($table)
