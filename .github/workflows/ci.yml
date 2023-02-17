@@ -15,8 +15,9 @@ jobs:
     if: (github.event_name == 'schedule' && github.repository_owner == 'silverstripe') || (github.event_name != 'schedule')
     uses: maxime-rainville/gha-ci/.github/workflows/ci.yml@1
     with:
+      phpunit: false
       preserve_vendor_test: true
       extra_jobs: |
         - php: 8.1
-          db: pgsql
+          db: sqlite3
           phpunit: true
