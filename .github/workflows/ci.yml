@@ -21,3 +21,6 @@ jobs:
         - php: 8.1
           db: sqlite3
           phpunit: true
+        - php: 8.1
+          db: mssql
+          phpunit: true
