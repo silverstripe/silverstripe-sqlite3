@@ -14,3 +14,21 @@ jobs:
     # Only run cron on the silverstripe account
     if: (github.event_name == 'schedule' && github.repository_owner == 'silverstripe') || (github.event_name != 'schedule')
     uses: silverstripe/gha-ci/.github/workflows/ci.yml@v1
+    with:
+      # set phpunit to false to prevent automatic generation of mysql phpunit jobs
+      phpunit: false
+      preserve_vendor_tests: true
+      extra_jobs: |
+        - php: 8.1
+          db: sqlite3
+          composer_args: --prefer-lowest
+          phpunit: true
+          phpunit_suite: all
+        - php: 8.1
+          db: sqlite3
+          phpunit: true
+          phpunit_suite: all
+        - php: 8.2
+          db: sqlite3
+          phpunit: true
+          phpunit_suite: all

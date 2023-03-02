@@ -627,9 +627,9 @@ class SQLite3Database extends Database
                 // GLOB uses asterisks as wildcards.
                 // Replace them in search string, without replacing escaped percetage signs.
                 $comp = 'GLOB';
-                $value = preg_replace('/^%([^\\\\])/', '*$1', $value);
-                $value = preg_replace('/([^\\\\])%$/', '$1*', $value);
-                $value = preg_replace('/([^\\\\])%/', '$1*', $value);
+                $value = preg_replace('/^%([^\\\\])/', '*$1', $value ?? '');
+                $value = preg_replace('/([^\\\\])%$/', '$1*', $value ?? '');
+                $value = preg_replace('/([^\\\\])%/', '$1*', $value ?? '');
             } else {
                 $comp = 'LIKE';
             }
