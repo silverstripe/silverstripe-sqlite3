@@ -692,7 +692,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         return (bool)$this->preparedQuery(
             'SELECT "name" FROM "sqlite_master" WHERE "type" = ? AND "name" = ?',
             array('table', $tableName)
-        )->first();
+        )->record();
     }
 
     /**
@@ -715,7 +715,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         $classnameinfo = $this->preparedQuery(
             "SELECT EnumList FROM SQLiteEnums WHERE TableColumn = ?",
             array($tablefield)
-        )->first();
+        )->record();
         if ($classnameinfo) {
             $valueList = $classnameinfo['EnumList'];
             $this->enum_map[$tablefield] = $valueList;

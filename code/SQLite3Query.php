@@ -4,6 +4,7 @@ namespace SilverStripe\SQLite;
 
 use SilverStripe\ORM\Connect\Query;
 use SQLite3Result;
+use Traversable;
 
 /**
  * A result-set from a SQLite3 database.
@@ -43,16 +44,6 @@ class SQLite3Query extends Query
         }
     }
 
-    public function seek($row)
-    {
-        $this->handle->reset();
-        $i=0;
-        while ($i <= $row && $result = @$this->handle->fetchArray(SQLITE3_ASSOC)) {
-            $i++;
-        }
-        return $result;
-    }
-
     /**
      * @todo This looks terrible but there is no SQLite3::get_num_rows() implementation
      */
@@ -62,7 +53,7 @@ class SQLite3Query extends Query
         if (!$this->handle->numColumns()) {
             return 0;
         }
-        
+
         $this->handle->reset();
         $c=0;
         while ($this->handle->fetchArray()) {
@@ -72,13 +63,10 @@ class SQLite3Query extends Query
         return $c;
     }
 
-    #[\ReturnTypeWillChange]
-    public function getIterator()
+    public function getIterator(): Traversable
     {
-        if ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
-            return $data;
-        } else {
-            return false;
+        while ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
+            yield $data;
         }
     }
 }
