@@ -8,13 +8,11 @@
 Andreas Piening (Nickname: apiening)
 <andreas (at) silverstripe (dot) com>
 
-## Requirements
-
- * Silverstripe 4.0 or newer
-
 ## Installation
 
- * Install using composer with `composer require silverstripe/sqlite3 ^2`.
+```sh
+composer require silverstripe/sqlite3
+```
 
 ## Configuration
 
