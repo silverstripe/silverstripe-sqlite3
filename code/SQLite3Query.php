@@ -26,7 +26,7 @@ class SQLite3Query extends Query
      */
     protected $handle;
 
-    protected int $count = 0;
+    private int $count = 0;
 
     /**
      * Hook the result-set given into a Query class, suitable for use by framework.
