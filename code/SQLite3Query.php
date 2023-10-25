@@ -56,14 +56,13 @@ class SQLite3Query extends Query
     /**
      * @todo This looks terrible but there is no SQLite3::get_num_rows() implementation
      */
-    private function countRecords()
+    private function countRecords(): int
     {
         // Some queries are not iterable using fetchArray like CREATE statement
         if (!$this->handle->numColumns()) {
             return 0;
         }
 
-        $this->handle->reset();
         $c = 0;
         while ($this->handle->fetchArray()) {
             $c++;
