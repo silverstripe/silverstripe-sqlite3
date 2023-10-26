@@ -26,6 +26,8 @@ class SQLite3Query extends Query
      */
     protected $handle;
 
+    private int $count = 0;
+
     /**
      * Hook the result-set given into a Query class, suitable for use by framework.
      * @param SQLite3Connector $database The database object that created this query.
@@ -35,6 +37,8 @@ class SQLite3Query extends Query
     {
         $this->database = $database;
         $this->handle = $handle;
+        // Count early to make sure we don't interfere with the generator and rewind operation
+        $this->count = $this->countRecords();
     }
 
     public function __destruct()
@@ -44,18 +48,22 @@ class SQLite3Query extends Query
         }
     }
 
+    public function numRecords()
+    {
+        return $this->count;
+    }
+
     /**
      * @todo This looks terrible but there is no SQLite3::get_num_rows() implementation
      */
-    public function numRecords()
+    private function countRecords(): int
     {
         // Some queries are not iterable using fetchArray like CREATE statement
         if (!$this->handle->numColumns()) {
             return 0;
         }
 
-        $this->handle->reset();
-        $c=0;
+        $c = 0;
         while ($this->handle->fetchArray()) {
             $c++;
         }
