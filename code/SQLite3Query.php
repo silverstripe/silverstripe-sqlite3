@@ -39,7 +39,7 @@ class SQLite3Query extends Query
 
     public function __destruct()
     {
-        if ($this->handle) {
+        if ($this->handle && $this->database->isActive()) {
             $this->handle->finalize();
         }
     }
