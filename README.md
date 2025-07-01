@@ -18,13 +18,15 @@ composer require silverstripe/sqlite3
 Either use the installer to automatically install SQLite or add this to your _config.php (right after
 "require_once("conf/ConfigureFromEnv.php");" if you are using _ss_environment.php)
 
-	$databaseConfig['type'] = 'SQLite3Database';
-	$databaseConfig['path'] = "/path/to/my/database/file";
+```php
+$databaseConfig['type'] = 'SQLite3Database';
+$databaseConfig['path'] = "/path/to/my/database/file";
+```
 
 Make sure the webserver has sufficient privileges to write to that folder and that it is protected from
 external access.
 
-### Sample mysite/_config.php
+### Sample app/_config.php
 
 ```php
 <?php
@@ -37,14 +39,14 @@ $database = 'SS_mysite';
 require_once("conf/ConfigureFromEnv.php");
 
 global $databaseConfig;
-$databaseConfig = array(
+$databaseConfig = [
 	"type" => 'SQLite3Database',
 	"server" => 'none',
 	"username" => 'none',
 	"password" => 'none',
 	"database" => $database,
 	"path" => "/path/to/my/database/file",
-);
+];
 ```
 
 Again: make sure that the webserver has permission to read and write to the above path (/path/to/my/database/,
