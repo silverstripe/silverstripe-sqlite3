@@ -1,20 +1,17 @@
 # SQLite3 Module
 
-[![Build Status](https://travis-ci.org/silverstripe/silverstripe-sqlite3.png?branch=master)](https://travis-ci.org/silverstripe/silverstripe-sqlite3)
-[![SilverStripe supported module](https://img.shields.io/badge/silverstripe-supported-0071C4.svg)](https://www.silverstripe.org/software/addons/silverstripe-commercially-supported-module-list/)
+[![CI](https://github.com/silverstripe/silverstripe-sqlite3/actions/workflows/ci.yml/badge.svg)](https://github.com/silverstripe/silverstripe-sqlite3/actions/workflows/ci.yml)
 
 ## Maintainer Contact
 
 Andreas Piening (Nickname: apiening)
 <andreas (at) silverstripe (dot) com>
 
-## Requirements
-
- * SilverStripe 4.0 or newer
-
 ## Installation
 
- * Install using composer with `composer require silverstripe/sqlite3 ^2`.
+```sh
+composer require silverstripe/sqlite3
+```
 
 ## Configuration
 
@@ -26,7 +23,6 @@ Either use the installer to automatically install SQLite or add this to your _co
 
 Make sure the webserver has sufficient privileges to write to that folder and that it is protected from
 external access.
-
 
 ### Sample mysite/_config.php
 

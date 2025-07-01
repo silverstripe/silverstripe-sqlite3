@@ -5,7 +5,6 @@ namespace SilverStripe\SQLite;
 use SilverStripe\Assets\File;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Convert;
-use SilverStripe\Dev\Deprecation;
 use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\Connect\Database;
 use SilverStripe\ORM\DataList;
@@ -120,16 +119,6 @@ class SQLite3Database extends Database
      */
     public function connect($parameters)
     {
-        if (!empty($parameters['memory'])) {
-            Deprecation::notice(
-                '1.4.0',
-                "\$databaseConfig['memory'] is deprecated. Use \$databaseConfig['path'] = ':memory:' instead.",
-                Deprecation::SCOPE_GLOBAL
-            );
-            unset($parameters['memory']);
-            $parameters['path'] = ':memory:';
-        }
-
         //We will store these connection parameters for use elsewhere (ie, unit tests)
         $this->parameters = $parameters;
         $this->schemaManager->flushCache();
@@ -411,7 +400,7 @@ class SQLite3Database extends Database
             $queries[$class]->setFrom('"'.DataObject::getSchema()->baseDataTable($class).'"');
             $queries[$class]->setSelect(array());
             foreach ($select[$class] as $clause) {
-                if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause, $matches)) {
+                if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause ?? '', $matches)) {
                     $queries[$class]->selectField($matches[1], $matches[2]);
                 } else {
                     $queries[$class]->selectField(str_replace('"', '', $clause));
@@ -458,6 +447,19 @@ class SQLite3Database extends Database
     public function supportsTransactions()
     {
         return version_compare($this->getVersion(), '3.6', '>=');
+    }
+
+    /**
+     * Does this database support transaction modes?
+     *
+     * SQLite doesn't support transaction modes.
+     *
+     * @param string $mode
+     * @return bool
+     */
+    public function supportsTransactionMode(string $mode): bool
+    {
+        return false;
     }
 
     public function supportsExtensions($extensions = array('partitions', 'tablespaces', 'clustering'))
@@ -527,7 +529,7 @@ class SQLite3Database extends Database
         return $this->transactionNesting;
     }
 
-    public function transactionEnd($chain = false)
+    public function transactionEnd(): bool|null
     {
         // Fail if transaction isn't available
         if (!$this->transactionDepth()) {
@@ -541,10 +543,6 @@ class SQLite3Database extends Database
         } else {
             $this->query('COMMIT;');
             $this->resetTransactionNesting();
-        }
-
-        if ($chain) {
-            $this->transactionStart();
         }
 
         return true;
@@ -609,16 +607,6 @@ class SQLite3Database extends Database
         return parent::preparedQuery($sql, $parameters, $errorLevel);
     }
 
-    /**
-     * Inspect a SQL query prior to execution
-     * @deprecated 2.2.0:3.0.0
-     * @param string $sql
-     */
-    protected function inspectQuery($sql)
-    {
-        // no-op
-    }
-
     public function clearTable($table)
     {
         $this->query("DELETE FROM \"$table\"");
@@ -639,9 +627,9 @@ class SQLite3Database extends Database
                 // GLOB uses asterisks as wildcards.
                 // Replace them in search string, without replacing escaped percetage signs.
                 $comp = 'GLOB';
-                $value = preg_replace('/^%([^\\\\])/', '*$1', $value);
-                $value = preg_replace('/([^\\\\])%$/', '$1*', $value);
-                $value = preg_replace('/([^\\\\])%/', '$1*', $value);
+                $value = preg_replace('/^%([^\\\\])/', '*$1', $value ?? '');
+                $value = preg_replace('/([^\\\\])%$/', '$1*', $value ?? '');
+                $value = preg_replace('/([^\\\\])%/', '$1*', $value ?? '');
             } else {
                 $comp = 'LIKE';
             }
@@ -659,7 +647,7 @@ class SQLite3Database extends Database
 
     public function formattedDatetimeClause($date, $format)
     {
-        preg_match_all('/%(.)/', $format, $matches);
+        preg_match_all('/%(.)/', $format ?? '', $matches);
         foreach ($matches[1] as $match) {
             if (array_search($match, array('Y', 'm', 'd', 'H', 'i', 's', 'U')) === false) {
                 user_error('formattedDatetimeClause(): unsupported format character %' . $match, E_USER_WARNING);
@@ -681,9 +669,9 @@ class SQLite3Database extends Database
             $modifiers[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date)) {
+        if (preg_match('/^now$/i', $date ?? '')) {
             $date = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date ?? '')) {
             $date = "'$date'";
         }
 
@@ -698,9 +686,9 @@ class SQLite3Database extends Database
             $modifiers[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date)) {
+        if (preg_match('/^now$/i', $date ?? '')) {
             $date = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date ?? '')) {
             $date = "'$date'";
         }
 
@@ -720,15 +708,15 @@ class SQLite3Database extends Database
             $modifiers2[] = 'localtime';
         }
 
-        if (preg_match('/^now$/i', $date1)) {
+        if (preg_match('/^now$/i', $date1 ?? '')) {
             $date1 = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date1)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date1 ?? '')) {
             $date1 = "'$date1'";
         }
 
-        if (preg_match('/^now$/i', $date2)) {
+        if (preg_match('/^now$/i', $date2 ?? '')) {
             $date2 = "'now'";
-        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date2)) {
+        } elseif (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/i', $date2 ?? '')) {
             $date2 = "'$date2'";
         }
 

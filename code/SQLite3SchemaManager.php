@@ -232,7 +232,7 @@ class SQLite3SchemaManager extends DBSchemaManager
             if (self::$vacuum) {
                 $this->query('VACUUM', E_USER_NOTICE);
                 $message = $this->database->getConnector()->getLastError();
-                if (preg_match('/authoriz/', $message)) {
+                if (preg_match('/authoriz/', $message ?? '')) {
                     $this->alterationMessage("VACUUM | $message", "error");
                 } else {
                     $this->alterationMessage("VACUUMing", "repaired");
@@ -371,7 +371,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         if ($sqlCreate && $sqlCreate['sql']) {
             preg_match(
                 '/^[\s]*CREATE[\s]+TABLE[\s]+[\'"]?[a-zA-Z0-9_\\\]+[\'"]?[\s]*\((.+)\)[\s]*$/ims',
-                $sqlCreate['sql'],
+                $sqlCreate['sql'] ?? '',
                 $matches
             );
             $fields = isset($matches[1])
@@ -692,7 +692,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         return (bool)$this->preparedQuery(
             'SELECT "name" FROM "sqlite_master" WHERE "type" = ? AND "name" = ?',
             array('table', $tableName)
-        )->first();
+        )->record();
     }
 
     /**
@@ -715,7 +715,7 @@ class SQLite3SchemaManager extends DBSchemaManager
         $classnameinfo = $this->preparedQuery(
             "SELECT EnumList FROM SQLiteEnums WHERE TableColumn = ?",
             array($tablefield)
-        )->first();
+        )->record();
         if ($classnameinfo) {
             $valueList = $classnameinfo['EnumList'];
             $this->enum_map[$tablefield] = $valueList;
