@@ -725,4 +725,20 @@ class SQLite3Database extends Database
 
         return "strftime('%s', $date1$modifier1) - strftime('%s', $date2$modifier2)";
     }
+
+    /**
+     * Throw the correct DatabaseException for this error
+     *
+     * @throws DatabaseException
+     */
+    private function throwRelevantError(string $message, int $code, int $errorLevel, ?string $sql, array $parameters): void
+    {
+        if ($errorLevel === E_USER_ERROR && ($code === 1062 || $code === 1586)) {
+            // UNIQUE constraint failed
+            preg_match('/UNIQUE constraint failed\'?/', $message, $matches);
+            $this->duplicateEntryError($message, '', $matches['val'], $sql, $parameters);
+        } else {
+            $this->databaseError($message, $errorLevel, $sql, $parameters);
+        }
+    }
 }

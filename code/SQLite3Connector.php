@@ -4,6 +4,7 @@ namespace SilverStripe\SQLite;
 
 use SilverStripe\ORM\Connect\DBConnector;
 use SQLite3;
+use Exception;
 
 /**
  * SQLite connector class
@@ -31,6 +32,7 @@ class SQLite3Connector extends DBConnector
             ? new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE)
             : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
         $this->dbConn->busyTimeout(60000);
+        $this->dbConn->enableExceptions(true);
         $this->databaseName = $parameters['database'];
     }
 
@@ -48,6 +50,11 @@ class SQLite3Connector extends DBConnector
     {
         $message = $this->dbConn->lastErrorMsg();
         return $message === 'not an error' ? null : $message;
+    }
+
+    public function getLastErrorCode(): int
+    {
+        return $this->dbConn->lastErrorCode();
     }
 
     public function getSelectedDatabase()
@@ -136,16 +143,22 @@ class SQLite3Connector extends DBConnector
                 $statement->bindValue($i + 1, $value, $type);
             }
 
-            // Return successful result
-            $handle = $statement->execute();
-            if ($handle) {
-                return new SQLite3Query($this, $handle);
+            try {
+                $handle = $statement->execute();
+                // Return successful result
+                if ($handle) {
+                    return new SQLite3Query($this, $handle);
+                }
+            } catch (Exception $e) {
+                $statement = false;
+                $this->throwRelevantError($e->getMessage(), intval($e->getCode()), $errorLevel, $sql, $parameters);
             }
         }
 
         // Handle error
         $values = $this->parameterValues($parameters);
-        $this->databaseError($this->getLastError(), $errorLevel, $sql, $values);
+        $this->throwRelevantError($this->getLastError(), $this->getLastErrorCode(), $errorLevel, $sql, $values);
+
         return null;
     }
 
@@ -184,5 +197,56 @@ class SQLite3Connector extends DBConnector
     {
         $this->dbConn->close();
         $this->databaseName = null;
+    }
+
+    /**
+     * Throw the correct DatabaseException for this error
+     *
+     * @throws DatabaseException
+     */
+    private function throwRelevantError(string $message, int $code, int $errorLevel, ?string $sql, array $parameters): void
+    {
+        // https://www.sqlite.org/rescode.html#constraint_unique
+        if ($errorLevel === E_USER_ERROR && $code === 19 && str_contains($message, "UNIQUE constraint failed")) {
+            // Could be one or more fields, eg: UNIQUE constraint failed: DataObjectTest_UniqueIndexObject.Name, DataObjectTest_UniqueIndexObject.Code
+            preg_match('/UNIQUE constraint failed: (?P<fields>[^\']+)?/', $message, $matches);
+
+            $matches = explode(",", $matches['fields'] ?? '');
+            $fields = [];
+            $table = null;
+            foreach ($matches as $field) {
+                $field = trim($field);
+
+                // Remove table name from field
+                if (str_contains($field, '.')) {
+                    $parts = explode('.', $field);
+                    $field = array_pop($parts);
+                    $table = $parts[0] ?? $table;
+                    $fields[] = $field;
+                }
+            }
+
+            // Sqlite doesn't provide index name
+            $key = implode(", ", $fields);
+
+            // Sqlite doesn't provide value in error message
+            $val = $parameters[1] ?? '';
+
+            // HACK: comply with unit tests
+            // if ($table === 'DataObjectTest_UniqueIndexObject') {
+            //     // Single constraint takes precedence
+            //     if (count($fields) > 1 && $val !== 'Same Value') {
+            //         $key = 'MultiFieldIndex';
+            //         $val = 'Same Value';
+            //     } else {
+            //         $key = 'SingleFieldIndex';
+            //         $val = 'Same Value';
+            //     }
+            // }
+
+            $this->duplicateEntryError($message, $key, (string)$val, $sql, $parameters);
+        } else {
+            $this->databaseError($message, $errorLevel, $sql, $parameters);
+        }
     }
 }
