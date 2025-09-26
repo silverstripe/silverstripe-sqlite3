@@ -5,12 +5,12 @@ namespace SilverStripe\SQLite;
 use SilverStripe\Assets\File;
 use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Convert;
-use SilverStripe\ORM\ArrayList;
 use SilverStripe\ORM\Connect\Database;
 use SilverStripe\ORM\DataList;
 use SilverStripe\ORM\DataObject;
-use SilverStripe\ORM\PaginatedList;
 use SilverStripe\ORM\Queries\SQLSelect;
+use SilverStripe\Model\List\ArrayList;
+use SilverStripe\Model\List\PaginatedList;
 
 /**
  * SQLite database controller class
@@ -22,12 +22,12 @@ class SQLite3Database extends Database
     /**
      * Global environment config for setting 'path'
      */
-    const ENV_PATH = 'SS_SQLITE_DATABASE_PATH';
+    public const ENV_PATH = 'SS_SQLITE_DATABASE_PATH';
 
     /**
      * Global environment config for setting 'key'
      */
-    const ENV_KEY = 'SS_SQLITE_DATABASE_KEY';
+    public const ENV_KEY = 'SS_SQLITE_DATABASE_KEY';
 
     /**
      * Extension added to every database name
@@ -397,7 +397,7 @@ class SQLite3Database extends Database
         // Process queries
         foreach ($classesToSearch as $class) {
             // There's no need to do all that joining
-            $queries[$class]->setFrom('"'.DataObject::getSchema()->baseDataTable($class).'"');
+            $queries[$class]->setFrom('"' . DataObject::getSchema()->baseDataTable($class) . '"');
             $queries[$class]->setSelect(array());
             foreach ($select[$class] as $clause) {
                 if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause ?? '', $matches)) {

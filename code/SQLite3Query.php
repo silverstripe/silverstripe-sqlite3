@@ -11,7 +11,6 @@ use Traversable;
  */
 class SQLite3Query extends Query
 {
-
     /**
      * The SQLite3Connector object that created this result set.
      *
@@ -55,7 +54,7 @@ class SQLite3Query extends Query
         }
 
         $this->handle->reset();
-        $c=0;
+        $c = 0;
         while ($this->handle->fetchArray()) {
             $c++;
         }

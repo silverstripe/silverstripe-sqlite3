@@ -22,14 +22,14 @@ DatabaseAdapterRegistry::register(
         'class' => 'SQLite3Database',
         'module' => 'sqlite3',
         'title' => 'SQLite 3.3+ (using SQLite3)',
-        'helperPath' => __DIR__.'/code/SQLiteDatabaseConfigurationHelper.php',
+        'helperPath' => __DIR__ . '/code/SQLiteDatabaseConfigurationHelper.php',
         'helperClass' => SQLiteDatabaseConfigurationHelper::class,
         'supported' => class_exists('SQLite3'),
-        'missingExtensionText' => 'The <a href="http://php.net/manual/en/book.sqlite3.php">SQLite3</a> 
+        'missingExtensionText' => 'The <a href="http://php.net/manual/en/book.sqlite3.php">SQLite3</a>
 			PHP Extension is not available. Please install or enable it of them and refresh this page.',
         'fields' => array_merge($sqliteDatabaseAdapterRegistryFields, array('key' => array(
             'title' => 'Encryption key<br><small>This function is experimental and requires configuration of an '
-            . 'encryption module</small>',
+                . 'encryption module</small>',
             'default' => ''
         )))
     )
@@ -42,11 +42,11 @@ DatabaseAdapterRegistry::register(
         'class' => 'SQLite3PDODatabase',
         'module' => 'sqlite3',
         'title' => 'SQLite 3.3+ (using PDO)',
-        'helperPath' => __DIR__.'/code/SQLiteDatabaseConfigurationHelper.php',
+        'helperPath' => __DIR__ . '/code/SQLiteDatabaseConfigurationHelper.php',
         'helperClass' => SQLiteDatabaseConfigurationHelper::class,
         'supported' => (class_exists('PDO') && in_array('sqlite', PDO::getAvailableDrivers())),
         'missingExtensionText' =>
-            'Either the <a href="http://php.net/manual/en/book.pdo.php">PDO Extension</a> or the
+        'Either the <a href="http://php.net/manual/en/book.pdo.php">PDO Extension</a> or the
 			<a href="http://php.net/manual/en/book.sqlite3.php">SQLite3 PDO Driver</a>
 			are unavailable. Please install or enable these and refresh this page.',
         'fields' => $sqliteDatabaseAdapterRegistryFields

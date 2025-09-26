@@ -13,7 +13,6 @@ use SQLite3;
  */
 class SQLite3SchemaManager extends DBSchemaManager
 {
-
     /**
      * Instance of the database controller this schema belongs to
      *

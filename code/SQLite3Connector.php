@@ -10,7 +10,6 @@ use SQLite3;
  */
 class SQLite3Connector extends DBConnector
 {
-
     /**
      * The name of the database.
      *
@@ -29,8 +28,8 @@ class SQLite3Connector extends DBConnector
     {
         $file = $parameters['filepath'];
         $this->dbConn = empty($parameters['key'])
-                ? new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE)
-                : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
+            ? new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE)
+            : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
         $this->dbConn->busyTimeout(60000);
         $this->databaseName = $parameters['database'];
     }
@@ -134,7 +133,7 @@ class SQLite3Connector extends DBConnector
             for ($i = 0; $i < count($parsedParameters); $i++) {
                 $value = $parsedParameters[$i]['value'];
                 $type = $parsedParameters[$i]['type'];
-                $statement->bindValue($i+1, $value, $type);
+                $statement->bindValue($i + 1, $value, $type);
             }
 
             // Return successful result
@@ -165,7 +164,7 @@ class SQLite3Connector extends DBConnector
 
     public function quoteString($value)
     {
-        return "'".$this->escapeString($value)."'";
+        return "'" . $this->escapeString($value) . "'";
     }
 
     public function escapeString($value)

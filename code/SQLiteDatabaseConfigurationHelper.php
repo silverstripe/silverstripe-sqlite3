@@ -16,7 +16,6 @@ use Exception;
  */
 class SQLiteDatabaseConfigurationHelper implements DatabaseConfigurationHelper
 {
-
     /**
      * Create a connection of the appropriate type
      *
