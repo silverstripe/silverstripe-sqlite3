@@ -40,6 +40,13 @@ class SQLite3Query extends Query
     private bool $exhausted = false;
 
     /**
+     * Current iteration position across successive iterators.
+     *
+     * @var int
+     */
+    private int $currentIndex = 0;
+
+    /**
      * @param SQLite3Connector $database
      * @param SQLite3Result $handle
      */
@@ -93,17 +100,17 @@ class SQLite3Query extends Query
      */
     public function getIterator(): Traversable
     {
-        $index = 0;
-
         while (true) {
-            if (array_key_exists($index, $this->rows)) {
-                yield $this->rows[$index];
-                $index++;
+            if (array_key_exists($this->currentIndex, $this->rows)) {
+                $row = $this->rows[$this->currentIndex];
+                $this->currentIndex++;
+                yield $row;
                 continue;
             }
 
             if ($this->exhausted || !$this->handle->numColumns()) {
                 $this->exhausted = true;
+                $this->currentIndex = 0;
                 return;
             }
 
@@ -111,12 +118,18 @@ class SQLite3Query extends Query
             if ($row === false) {
                 // SQLite restarts from the first row after EOF, so never fetch again once exhausted.
                 $this->exhausted = true;
+                $this->currentIndex = 0;
                 return;
             }
 
             $this->rows[] = $row;
+            $this->currentIndex++;
             yield $row;
-            $index++;
         }
+    }
+
+    public function rewind(): void
+    {
+        $this->currentIndex = 0;
     }
 }
