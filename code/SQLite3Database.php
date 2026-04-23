@@ -612,6 +612,28 @@ class SQLite3Database extends Database
         $this->query("DELETE FROM \"$table\"");
     }
 
+    /**
+     * Generate SQL for sorting by a specific field using SQLite-compatible CASE logic.
+     *
+     * Older framework versions may default to MySQL's FIELD() syntax, which SQLite
+     * can't execute. Keeping this override in the adapter ensures custom relation
+     * ordering stays portable across supported framework releases.
+     *
+     * @param string $field
+     * @param array $values
+     * @return string
+     */
+    public function sortByField(string $field, array $values): string
+    {
+        $caseStatements = [];
+        foreach ($values as $index => $value) {
+            $escaped = is_int($value) ? $value : $this->quoteString($value);
+            $caseStatements[] = sprintf('WHEN "%s" = %s THEN %d', $field, $escaped, $index);
+        }
+
+        return sprintf('CASE %s ELSE %d END', implode(' ', $caseStatements), count($caseStatements));
+    }
+
     public function comparisonClause(
         $field,
         $value,
