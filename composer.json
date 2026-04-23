@@ -27,9 +27,15 @@
 		}
 	},
     "scripts": {
-        "lint": "phpcs code/ *.php",
-        "lint-clean": "phpcbf code/ *.php"
+        "lint": "phpcs",
+        "lint-clean": "phpcbf"
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+	"config": {
+		"allow-plugins": {
+			"composer/installers": true,
+			"silverstripe/vendor-plugin": true
+		}
+	}
 }

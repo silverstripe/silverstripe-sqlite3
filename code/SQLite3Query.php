@@ -27,6 +27,27 @@ class SQLite3Query extends Query
     protected $handle;
 
     /**
+     * Buffered rows fetched from the SQLite result handle.
+     *
+     * @var array<int, array<string, mixed>>
+     */
+    protected $rows = [];
+
+    /**
+     * Tracks whether the SQLite result handle has reached EOF.
+     *
+     * @var bool
+     */
+    protected $exhausted = false;
+
+    /**
+     * Shared cursor position across successive iterators.
+     *
+     * @var int
+     */
+    protected $currentIndex = 0;
+
+    /**
      * Hook the result-set given into a Query class, suitable for use by framework.
      * @param SQLite3Connector $database The database object that created this query.
      * @param SQLite3Result $handle the internal sqlite3 handle that is points to the resultset.
@@ -54,19 +75,49 @@ class SQLite3Query extends Query
             return 0;
         }
 
-        $this->handle->reset();
-        $c=0;
-        while ($this->handle->fetchArray()) {
-            $c++;
-        }
-        $this->handle->reset();
-        return $c;
+        $this->loadAllRows();
+
+        return count($this->rows);
     }
 
     public function getIterator(): Traversable
     {
-        while ($data = $this->handle->fetchArray(SQLITE3_ASSOC)) {
+        while (isset($this->rows[$this->currentIndex])) {
+            $row = $this->rows[$this->currentIndex];
+            $this->currentIndex++;
+
+            yield $row;
+        }
+
+        while (!$this->exhausted) {
+            $data = $this->handle->fetchArray(SQLITE3_ASSOC);
+            if ($data === false) {
+                $this->exhausted = true;
+                break;
+            }
+
+            $this->rows[] = $data;
+            $this->currentIndex++;
+
             yield $data;
+        }
+    }
+
+    public function rewind()
+    {
+        $this->currentIndex = 0;
+    }
+
+    protected function loadAllRows()
+    {
+        while (!$this->exhausted) {
+            $data = $this->handle->fetchArray(SQLITE3_ASSOC);
+            if ($data === false) {
+                $this->exhausted = true;
+                break;
+            }
+
+            $this->rows[] = $data;
         }
     }
 }
