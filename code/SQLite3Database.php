@@ -70,6 +70,13 @@ class SQLite3Database extends Database
     protected $transactionSavepoints = [];
 
     /**
+     * SQL transpiler for converting MySQL syntax to SQLite syntax
+     *
+     * @var SQLite3SQLTranspiler
+     */
+    protected $transpiler;
+
+    /**
      * List of default pragma values
      *
      * @todo Migrate to SS config
@@ -599,12 +606,29 @@ class SQLite3Database extends Database
 
     public function query($sql, $errorLevel = E_USER_ERROR)
     {
+        // Transpile SQL from MySQL syntax to SQLite syntax
+        $sql = $this->getTranspiler()->transpile($sql);
         return parent::query($sql, $errorLevel);
     }
 
     public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
     {
+        // Transpile SQL from MySQL syntax to SQLite syntax
+        $sql = $this->getTranspiler()->transpile($sql);
         return parent::preparedQuery($sql, $parameters, $errorLevel);
+    }
+
+    /**
+     * Get the SQL transpiler instance (lazy initialization)
+     *
+     * @return SQLite3SQLTranspiler
+     */
+    protected function getTranspiler(): SQLite3SQLTranspiler
+    {
+        if (!$this->transpiler) {
+            $this->transpiler = new SQLite3SQLTranspiler();
+        }
+        return $this->transpiler;
     }
 
     public function clearTable($table)
@@ -731,11 +755,16 @@ class SQLite3Database extends Database
      *
      * @throws DatabaseException
      */
-    private function throwRelevantError(string $message, int $code, int $errorLevel, ?string $sql, array $parameters): void
-    {
+    private function throwRelevantError(
+        string $message,
+        int $code,
+        int $errorLevel,
+        ?string $sql,
+        array $parameters
+    ): void {
         if ($errorLevel === E_USER_ERROR && ($code === 1062 || $code === 1586)) {
             // UNIQUE constraint failed
-            preg_match('/UNIQUE constraint failed\'?/', $message, $matches);
+            preg_match('/UNIQUE constraint failed/', $message, $matches);
             $this->duplicateEntryError($message, '', $matches['val'], $sql, $parameters);
         } else {
             $this->databaseError($message, $errorLevel, $sql, $parameters);

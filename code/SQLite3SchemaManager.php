@@ -453,7 +453,7 @@ class SQLite3SchemaManager extends DBSchemaManager
             // Determine a clean list of column names within this index
             $list = array();
             foreach ($this->query("PRAGMA index_info(\"$indexName\")") as $details) {
-                $list[] = preg_replace('/^"?(.*)"?$/', '$1', $details['name']);
+                $list[] = preg_replace('/^"?(.*)"?$/', '$1', $details['name'] ?? '');
             }
 
             // Safely encode this spec

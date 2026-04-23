@@ -18,8 +18,9 @@
         }
     ],
     "require": {
+        "silverstripe/vendor-plugin": "^3",
         "silverstripe/framework": "^6",
-        "silverstripe/vendor-plugin": "^3"
+        "silverstripe/versioned": "^3"
     },
     "require-dev": {
         "php": "^8.3",
@@ -32,9 +33,19 @@
         }
     },
     "scripts": {
-        "lint": "phpcs code/ *.php",
-        "lint-clean": "phpcbf code/ *.php"
+        "lint": "phpcs code/",
+        "lint-clean": "phpcbf code/",
+        "test": "DB=SQLITE vendor/bin/phpunit --testsuite framework",
+        "test-orm": "DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/",
+        "test-connect": "DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/Connect/",
+        "test-orm-debug": "DB=SQLITE SS_SQLITE_LOG_ERRORS=true vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/DataQueryTest.php --filter testJoins"
     },
     "minimum-stability": "dev",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "config": {
+        "allow-plugins": {
+            "composer/installers": true,
+            "silverstripe/vendor-plugin": true
+        }
+    }
 }

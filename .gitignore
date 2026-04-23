@@ -1,0 +1,39 @@
+# Composer
+/vendor/
+composer.lock
+
+# IDE files
+/.idea/
+/.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+
+# PHPUnit
+/phpunit.xml
+/.phpunit.result.cache
+/.phpunit.cache/
+
+# Build artifacts
+/build/
+/coverage/
+
+# SQLite databases (if created during testing)
+*.sqlite
+*.sqlite3
+*.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# OS files
+Thumbs.db
+
+# SilverStripe
+/public/

@@ -2,6 +2,7 @@
 
 namespace SilverStripe\SQLite;
 
+use SilverStripe\Core\Environment;
 use SilverStripe\ORM\Connect\DBConnector;
 use SQLite3;
 use Exception;
@@ -24,6 +25,100 @@ class SQLite3Connector extends DBConnector
      * @var SQLite3
      */
     protected $dbConn;
+
+    /**
+     * Log file handle
+     *
+     * @var resource|null
+     */
+    protected $logHandle = null;
+
+    /**
+     * Check if error logging is enabled
+     *
+     * @return bool
+     */
+    protected function isErrorLoggingEnabled(): bool
+    {
+        $envValue = getenv('SS_SQLITE_LOG_ERRORS');
+        if ($envValue === false) {
+            $envValue = Environment::getEnv('SS_SQLITE_LOG_ERRORS');
+        }
+        return $envValue === 'true' || $envValue === '1' || $envValue === true;
+    }
+
+    /**
+     * Get the log file path
+     *
+     * @return string
+     */
+    protected function getLogPath(): string
+    {
+        $path = getenv('SS_SQLITE_LOG_PATH');
+        if ($path === false) {
+            $path = Environment::getEnv('SS_SQLITE_LOG_PATH');
+        }
+        if ($path) {
+            return $path;
+        }
+        // Default to project root
+        return $this->findProjectRoot() . '/sqlite3_queries.log';
+    }
+
+    /**
+     * Find the project root directory
+     *
+     * @return string
+     */
+    protected function findProjectRoot(): string
+    {
+        // Start from current file and traverse up to find composer.json
+        $dir = __DIR__;
+        while ($dir !== dirname($dir)) {
+            if (file_exists($dir . '/composer.json')) {
+                return $dir;
+            }
+            $dir = dirname($dir);
+        }
+        // Fallback to current directory
+        return __DIR__;
+    }
+
+    /**
+     * Log a SQL error for debugging
+     *
+     * @param string $sql The SQL statement that failed
+     * @param array $parameters Optional parameters for prepared queries
+     * @param float|null $duration Query execution time in milliseconds
+     * @param string $error Error message
+     */
+    protected function logError(string $sql, array $parameters = [], ?float $duration = null, string $error = ''): void
+    {
+        if (!$this->isErrorLoggingEnabled()) {
+            return;
+        }
+
+        $logPath = $this->getLogPath();
+        $timestamp = date('Y-m-d H:i:s.u');
+
+        // Format the log entry
+        $entry = "[$timestamp]\n";
+        $entry .= "SQL: $sql\n";
+
+        if (!empty($parameters)) {
+            $entry .= "PARAMS: " . json_encode($parameters) . "\n";
+        }
+
+        if ($duration !== null) {
+            $entry .= "TIME: " . round($duration, 3) . "ms\n";
+        }
+
+        $entry .= "ERROR: $error\n";
+        $entry .= str_repeat('-', 80) . "\n";
+
+        // Write to log file
+        file_put_contents($logPath, $entry, FILE_APPEND | LOCK_EX);
+    }
 
     public function connect($parameters, $selectDB = false)
     {
@@ -130,11 +225,29 @@ class SQLite3Connector extends DBConnector
 
     public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
     {
+        $startTime = microtime(true);
+        $statement = null;
+
         // Type check, identify, and prepare parameters for passing to the statement bind function
         $parsedParameters = $this->parsePreparedParameters($parameters);
 
-        // Prepare statement
-        $statement = @$this->dbConn->prepare($sql);
+        // Prepare statement - need try/catch because enableExceptions(true) is set
+        try {
+            $statement = $this->dbConn->prepare($sql);
+        } catch (Exception $e) {
+            $duration = (microtime(true) - $startTime) * 1000;
+            $this->logError($sql, $parameters, $duration, "PREPARE FAILED: " . $e->getMessage());
+            $this->throwRelevantError($e->getMessage(), intval($e->getCode()), $errorLevel, $sql, $parameters);
+            return null;
+        }
+
+        if (!$statement) {
+            // Log failed prepare (when exceptions are disabled)
+            $duration = (microtime(true) - $startTime) * 1000;
+            $error = $this->getLastError();
+            $this->logError($sql, $parameters, $duration, "PREPARE FAILED: " . $error);
+        }
+
         if ($statement) {
             // Bind and run to statement
             for ($i = 0; $i < count($parsedParameters); $i++) {
@@ -151,13 +264,18 @@ class SQLite3Connector extends DBConnector
                 }
             } catch (Exception $e) {
                 $statement = false;
+                $duration = (microtime(true) - $startTime) * 1000;
+                $this->logError($sql, $parameters, $duration, $e->getMessage());
                 $this->throwRelevantError($e->getMessage(), intval($e->getCode()), $errorLevel, $sql, $parameters);
             }
         }
 
-        // Handle error
+        // Handle error when execute returns false but no exception
+        $duration = (microtime(true) - $startTime) * 1000;
+        $error = $this->getLastError();
+        $this->logError($sql, $parameters, $duration, $error);
         $values = $this->parameterValues($parameters);
-        $this->throwRelevantError($this->getLastError(), $this->getLastErrorCode(), $errorLevel, $sql, $values);
+        $this->throwRelevantError($error, $this->getLastErrorCode(), $errorLevel, $sql, $values);
 
         return null;
     }
@@ -171,7 +289,9 @@ class SQLite3Connector extends DBConnector
         }
 
         // Handle error
-        $this->databaseError($this->getLastError(), $errorLevel, $sql);
+        $error = $this->getLastError();
+        $this->logError($sql, [], null, $error);
+        $this->databaseError($error, $errorLevel, $sql);
         return null;
     }
 
@@ -204,11 +324,20 @@ class SQLite3Connector extends DBConnector
      *
      * @throws DatabaseException
      */
-    private function throwRelevantError(string $message, int $code, int $errorLevel, ?string $sql, array $parameters): void
-    {
+    private function throwRelevantError(
+        string $message,
+        int $code,
+        int $errorLevel,
+        ?string $sql,
+        array $parameters
+    ): void {
         // https://www.sqlite.org/rescode.html#constraint_unique
-        if ($errorLevel === E_USER_ERROR && $code === 19 && str_contains($message, "UNIQUE constraint failed")) {
-            // Could be one or more fields, eg: UNIQUE constraint failed: DataObjectTest_UniqueIndexObject.Name, DataObjectTest_UniqueIndexObject.Code
+        if (
+            $errorLevel === E_USER_ERROR && $code === 19
+            && str_contains($message, "UNIQUE constraint failed")
+        ) {
+            // Could be one or more fields, eg: UNIQUE constraint failed:
+            // DataObjectTest_UniqueIndexObject.Name, DataObjectTest_UniqueIndexObject.Code
             preg_match('/UNIQUE constraint failed: (?P<fields>[^\']+)?/', $message, $matches);
 
             $matches = explode(",", $matches['fields'] ?? '');
