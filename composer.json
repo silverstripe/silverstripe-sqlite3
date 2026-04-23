@@ -32,9 +32,14 @@
             "SilverStripe\\SQLite\\": "code/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "SilverStripe\\SQLite\\Tests\\": "tests/php/"
+        }
+    },
     "scripts": {
-        "lint": "phpcs code/",
-        "lint-clean": "phpcbf code/",
+        "lint": "phpcs",
+        "lint-clean": "phpcbf",
         "test": "DB=SQLITE vendor/bin/phpunit --testsuite framework",
         "test-orm": "DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/",
         "test-connect": "DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/Connect/",

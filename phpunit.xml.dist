@@ -4,5 +4,8 @@
         <testsuite name="framework">
             <directory>vendor/silverstripe/framework/tests/php</directory>
         </testsuite>
+        <testsuite name="sqlite3">
+            <directory>tests/php</directory>
+        </testsuite>
     </testsuites>
 </phpunit>

@@ -3,6 +3,7 @@
     <description>CodeSniffer ruleset for SilverStripe coding conventions.</description>
 
     <file>code</file>
+    <file>tests/php</file>
 
     <!-- base rules are PSR-2 -->
     <rule ref="PSR12">
