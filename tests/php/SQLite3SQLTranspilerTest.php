@@ -70,6 +70,51 @@ class SQLite3SQLTranspilerTest extends SapphireTest
     }
 
     /**
+     * Test that UNION DISTINCT is handled correctly
+     */
+    public function testUnionDistinctParenthesesRemoval()
+    {
+        $mysqlSql = '(
+
+SELECT 1, 2
+ )
+ UNION DISTINCT
+ (
+
+SELECT 1, 2
+ )';
+
+        $sqliteSql = $this->transpiler->transpile($mysqlSql);
+
+        $this->assertStringContainsString('UNION', $sqliteSql);
+        $this->assertStringNotContainsString('UNION DISTINCT', $sqliteSql);
+        $this->assertStringNotContainsString('(
+
+SELECT', $sqliteSql);
+        $this->assertStringNotContainsString(')\n UNION\n (', $sqliteSql);
+    }
+
+    /**
+     * Test that UPDATE INNER JOIN is rewritten to SQLite UPDATE FROM syntax
+     */
+    public function testUpdateInnerJoinRewrite()
+    {
+        $mysqlSql = 'UPDATE "SQLUpdateTestBase"
+INNER JOIN "SQLUpdateTestOther" ON "SQLUpdateTestOther"."Description" = "SQLUpdateTestBase"."Description"
+ SET "SQLUpdateTestBase"."Description" = ?';
+
+        $sqliteSql = $this->transpiler->transpile($mysqlSql);
+
+        $expectedSql = 'UPDATE "SQLUpdateTestBase" SET "Description" = ? FROM "SQLUpdateTestOther" '
+            . 'WHERE "SQLUpdateTestOther"."Description" = "SQLUpdateTestBase"."Description"';
+
+        $this->assertSame(
+            $expectedSql,
+            $sqliteSql
+        );
+    }
+
+    /**
      * Test that non-UNION queries are not modified
      */
     public function testNonUnionQueriesUnchanged()

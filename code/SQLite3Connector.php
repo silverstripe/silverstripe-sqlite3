@@ -340,40 +340,10 @@ class SQLite3Connector extends DBConnector
             // DataObjectTest_UniqueIndexObject.Name, DataObjectTest_UniqueIndexObject.Code
             preg_match('/UNIQUE constraint failed: (?P<fields>[^\']+)?/', $message, $matches);
 
-            $matches = explode(",", $matches['fields'] ?? '');
-            $fields = [];
-            $table = null;
-            foreach ($matches as $field) {
-                $field = trim($field);
+            $resolver = new SQLite3DuplicateEntryResolver($this->dbConn, [$this, 'parsePreparedParameters']);
+            $resolved = $resolver->resolve($matches['fields'] ?? '', $sql, $parameters);
 
-                // Remove table name from field
-                if (str_contains($field, '.')) {
-                    $parts = explode('.', $field);
-                    $field = array_pop($parts);
-                    $table = $parts[0] ?? $table;
-                    $fields[] = $field;
-                }
-            }
-
-            // Sqlite doesn't provide index name
-            $key = implode(", ", $fields);
-
-            // Sqlite doesn't provide value in error message
-            $val = $parameters[1] ?? '';
-
-            // HACK: comply with unit tests
-            // if ($table === 'DataObjectTest_UniqueIndexObject') {
-            //     // Single constraint takes precedence
-            //     if (count($fields) > 1 && $val !== 'Same Value') {
-            //         $key = 'MultiFieldIndex';
-            //         $val = 'Same Value';
-            //     } else {
-            //         $key = 'SingleFieldIndex';
-            //         $val = 'Same Value';
-            //     }
-            // }
-
-            $this->duplicateEntryError($message, $key, (string)$val, $sql, $parameters);
+            $this->duplicateEntryError($message, $resolved['key'], $resolved['value'], $sql, $parameters);
         } else {
             $this->databaseError($message, $errorLevel, $sql, $parameters);
         }

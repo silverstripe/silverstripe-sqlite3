@@ -510,7 +510,7 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function decimal($values)
     {
         $default = isset($values['default']) && is_numeric($values['default']) ? $values['default'] : 0;
-        return "NUMERIC NOT NULL DEFAULT $default";
+        return "REAL NOT NULL DEFAULT $default";
     }
 
     /**

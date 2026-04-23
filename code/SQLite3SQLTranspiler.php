@@ -15,10 +15,8 @@ class SQLite3SQLTranspiler
 {
     /**
      * Track if any transpilation occurred
-     *
-     * @var bool
      */
-    protected $didTranspile = false;
+    protected bool $didTranspile = false;
 
     /**
      * Transpile SQL from MySQL syntax to SQLite syntax
@@ -33,6 +31,7 @@ class SQLite3SQLTranspiler
 
         // Apply transformations in order
         $sql = $this->removeUnionParentheses($sql);
+        $sql = $this->rewriteUpdateJoin($sql);
 
         // Check if transpilation occurred
         if ($sql !== $originalSql) {
@@ -65,41 +64,71 @@ class SQLite3SQLTranspiler
     protected function removeUnionParentheses(string $sql): string
     {
         // Check if this looks like a UNION query with outer parentheses
-        if (!preg_match('/^\s*\(\s*SELECT/i', $sql) || !preg_match('/\)\s*UNION\s*\(/i', $sql)) {
+        if (!preg_match('/^\s*\(\s*SELECT\b/is', $sql)) {
+            return $sql;
+        }
+
+        if (!preg_match('/\)\s*UNION(?:\s+(?:ALL|DISTINCT))?\s*\(\s*SELECT\b/is', $sql)) {
             return $sql;
         }
 
         $result = $sql;
 
-        // Step 1: Remove the opening parenthesis at the very start (before first SELECT)
-        $result = preg_replace('/^\s*\(\s*(SELECT\s)/i', '$1', $result);
+        // Remove the opening parenthesis at the start of the compound SELECT.
+        $result = preg_replace('/^\s*\(\s*/', '', $result, 1);
 
-        // Step 2: Remove the pattern: ) UNION ( or ) UNION ALL ( or ) UNION DISTINCT (
-        // Replace with: ) UNION or ) UNION ALL or ) UNION DISTINCT
+        // Collapse the outer parentheses around each UNION branch.
         $result = preg_replace(
-            '/\)\s*(UNION(?:\s+(?:ALL|DISTINCT))?)\s*\(\s*(SELECT\s)/i',
-            ') $1 $2',
+            '/\)\s*(UNION(?:\s+(?:ALL|DISTINCT))?)\s*\(\s*/is',
+            ' $1 ',
             $result
         );
 
-        // Step 3: Remove the closing parenthesis before UNION
-        // Pattern: closing ) followed by UNION - remove the )
-        $result = preg_replace('/\)\s+(UNION\s)/i', ' $1', $result);
+        // SQLite treats UNION as DISTINCT by default and does not accept UNION DISTINCT syntax.
+        $result = preg_replace('/\bUNION\s+DISTINCT\b/i', 'UNION', $result);
 
-        // Step 4: Remove the closing parenthesis at the end if there's a UNION before it
-        // This removes the trailing ) after the last SELECT in a UNION
-        // We need to be careful because there may be parentheses inside WHERE clauses
-        if (preg_match('/UNION/i', $result)) {
-            // Find trailing ) that appears after the last character that's not )
-            // by trimming trailing whitespace then checking if last char is )
-            $trimmed = rtrim($result);
-            if (substr($trimmed, -1) === ')') {
-                // Remove the final )
-                $result = substr($trimmed, 0, -1);
-            }
+        // Remove the final outer parenthesis from the last UNION branch.
+        if (preg_match('/\)\s*$/', $result)) {
+            $result = preg_replace('/\)\s*$/', '', $result, 1);
         }
 
         return $result;
+    }
+
+    /**
+     * Rewrite MySQL UPDATE JOIN syntax into SQLite UPDATE ... FROM syntax.
+     *
+     * MySQL: UPDATE a INNER JOIN b ON b.id = a.id SET a.col = ? WHERE ...
+     * SQLite: UPDATE a SET a.col = ? FROM b WHERE b.id = a.id AND (...)
+     */
+    protected function rewriteUpdateJoin(string $sql): string
+    {
+        $pattern = '/^\s*UPDATE\s+(?<table>.+?)\s+INNER\s+JOIN\s+(?<joinTable>.+?)\s+ON\s+'
+            . '(?<joinCondition>.+?)\s+SET\s+(?<assignments>.+?)(?:\s+WHERE\s+(?<where>.+))?\s*$/is';
+        if (!preg_match($pattern, $sql, $matches)) {
+            return $sql;
+        }
+
+        $table = trim($matches['table']);
+        $assignments = preg_replace(
+            '/' . preg_quote($table, '/') . '\./',
+            '',
+            trim($matches['assignments'])
+        );
+
+        $rewritten = sprintf(
+            'UPDATE %s SET %s FROM %s WHERE %s',
+            $table,
+            $assignments,
+            trim($matches['joinTable']),
+            trim($matches['joinCondition'])
+        );
+
+        if (!empty($matches['where'])) {
+            $rewritten .= sprintf(' AND (%s)', trim($matches['where']));
+        }
+
+        return $rewritten;
     }
 
     /**
