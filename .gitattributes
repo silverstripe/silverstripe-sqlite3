@@ -14,9 +14,6 @@
 /.upgrade.yml export-ignore
 /phpunit.xml.dist export-ignore
 
-# Test files
-/tests/ export-ignore
-
 # Cache files
 /.phpunit.result.cache export-ignore
 /.phpunit.cache/ export-ignore
