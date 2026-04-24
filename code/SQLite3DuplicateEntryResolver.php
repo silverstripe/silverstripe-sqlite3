@@ -254,9 +254,12 @@ class SQLite3DuplicateEntryResolver
             return false;
         }
 
-        $parsedParameters = call_user_func($this->parsePreparedParameters, array_map(function ($column) use ($attemptedValues) {
-            return $attemptedValues[$column];
-        }, $columns));
+        $parsedParameters = call_user_func(
+            $this->parsePreparedParameters,
+            array_map(function ($column) use ($attemptedValues) {
+                return $attemptedValues[$column];
+            }, $columns)
+        );
 
         foreach ($parsedParameters as $index => $parameter) {
             $statement->bindValue($index + 1, $parameter['value'], $parameter['type']);
