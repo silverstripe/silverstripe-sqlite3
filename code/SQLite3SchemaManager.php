@@ -288,7 +288,8 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         $queries = array(
             "CREATE TABLE \"{$tableName}_alterfield_{$fieldName}\"(" . implode(',', $newColsSpec) . ")",
-            "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" ({$insertColumnList}) SELECT {$selectColumnList} FROM \"$tableName\"",
+            "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" ({$insertColumnList}) " .
+                "SELECT {$selectColumnList} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_alterfield_{$fieldName}\" RENAME TO \"$tableName\"",
         );
@@ -338,7 +339,8 @@ class SQLite3SchemaManager extends DBSchemaManager
         $newColsSpecStr = implode(',', $newColsSpec);
         $queries = array(
             "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" ({$newColsSpecStr})",
-            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" ({$insertColsStr}) SELECT {$oldColsStr} FROM \"$tableName\"",
+            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" ({$insertColsStr}) " .
+                "SELECT {$oldColsStr} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
         );

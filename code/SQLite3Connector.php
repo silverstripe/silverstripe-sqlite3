@@ -333,7 +333,11 @@ class SQLite3Connector extends DBConnector
     ): void {
         if (
             $errorLevel === E_USER_ERROR
-            && preg_match('/cannot\s+(?:UPDATE|INSERT\s+INTO)\s+generated\s+column\s+"(?P<column>[^"]+)"/i', $message, $matches)
+            && preg_match(
+                '/cannot\s+(?:UPDATE|INSERT\s+INTO)\s+generated\s+column\s+"(?P<column>[^"]+)"/i',
+                $message,
+                $matches
+            )
         ) {
             $table = null;
             if ($sql && preg_match('/\b(?:UPDATE|INTO)\s+"?(?P<table>[A-Za-z0-9_]+)"?/i', $sql, $tableMatches)) {
