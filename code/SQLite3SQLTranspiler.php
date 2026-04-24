@@ -32,6 +32,7 @@ class SQLite3SQLTranspiler
         // Apply transformations in order
         $sql = $this->removeUnionParentheses($sql);
         $sql = $this->rewriteUpdateJoin($sql);
+        $sql = $this->rewriteShowKeys($sql);
 
         // Check if transpilation occurred
         if ($sql !== $originalSql) {
@@ -126,6 +127,36 @@ class SQLite3SQLTranspiler
 
         if (!empty($matches['where'])) {
             $rewritten .= sprintf(' AND (%s)', trim($matches['where']));
+        }
+
+        return $rewritten;
+    }
+
+    /**
+     * Rewrite MySQL SHOW KEYS syntax to a SQLite PRAGMA-backed SELECT.
+     *
+     * Supports the framework test shape:
+     * SHOW KEYS FROM table WHERE "Key_name" = 'PRIMARY'
+     */
+    protected function rewriteShowKeys(string $sql): string
+    {
+        $pattern = '/^\s*SHOW\s+KEYS\s+FROM\s+(?<table>"[^"]+"|`[^`]+`|\[[^\]]+\]|\w+)'
+            . '(?:\s+WHERE\s+(?<where>.+?))?\s*$/is';
+        if (!preg_match($pattern, $sql, $matches)) {
+            return $sql;
+        }
+
+        $table = trim($matches['table']);
+        $table = trim($table, '"`[]');
+
+        $rewritten = sprintf(
+            "SELECT name AS \"Column_name\", 'PRIMARY' AS \"Key_name\", pk AS \"Seq_in_index\" "
+            . "FROM pragma_table_info('%s') WHERE pk > 0",
+            str_replace("'", "''", $table)
+        );
+
+        if (!empty($matches['where']) && preg_match('/\b\"?Key_name\"?\s*=\s*\'PRIMARY\'/i', $matches['where'])) {
+            return $rewritten;
         }
 
         return $rewritten;

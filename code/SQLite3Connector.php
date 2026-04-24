@@ -291,7 +291,7 @@ class SQLite3Connector extends DBConnector
         // Handle error
         $error = $this->getLastError();
         $this->logError($sql, [], null, $error);
-        $this->databaseError($error, $errorLevel, $sql);
+        $this->throwRelevantError($error, $this->getLastErrorCode(), $errorLevel, $sql, []);
         return null;
     }
 
@@ -331,6 +331,18 @@ class SQLite3Connector extends DBConnector
         ?string $sql,
         array $parameters
     ): void {
+        if (
+            $errorLevel === E_USER_ERROR
+            && preg_match('/cannot\s+(?:UPDATE|INSERT\s+INTO)\s+generated\s+column\s+"(?P<column>[^"]+)"/i', $message, $matches)
+        ) {
+            $table = null;
+            if ($sql && preg_match('/\b(?:UPDATE|INTO)\s+"?(?P<table>[A-Za-z0-9_]+)"?/i', $sql, $tableMatches)) {
+                $table = $tableMatches['table'];
+            }
+
+            $this->valueForGeneratedColumnError($message, $matches['column'] ?? null, $table, $sql, $parameters);
+        }
+
         // https://www.sqlite.org/rescode.html#constraint_unique
         if (
             $errorLevel === E_USER_ERROR && $code === 19

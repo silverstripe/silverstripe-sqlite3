@@ -2,7 +2,11 @@
 
 namespace SilverStripe\SQLite\Tests;
 
+use SilverStripe\Assets\File;
+use SilverStripe\Control\SessionHandler\DatabaseSessionHandler;
+use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\SapphireTest;
+use SilverStripe\ORM\Connect\GeneratedColumnValueException;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
 use SilverStripe\Core\Injector\Injector;
@@ -227,5 +231,79 @@ class SQLite3QueryIteratorTest extends SapphireTest
         foreach ($list as $obj) {
             $obj->delete();
         }
+    }
+
+    public function testShowKeysReportsPrimaryKeyForExplicitIdTable()
+    {
+        $handler = new DatabaseSessionHandler();
+        DB::get_schema()->schemaUpdate(fn() => $handler->requireTable());
+
+        $table = DatabaseSessionHandler::config()->get('table_name');
+        $record = DB::query('SHOW KEYS FROM ' . $table . ' WHERE "Key_name" = \'PRIMARY\'')->record();
+
+        $this->assertSame('ID', $record['Column_name']);
+        $this->assertSame('PRIMARY', $record['Key_name']);
+    }
+
+    public function testIndexListUsesSilverStripeNamesAndDirections()
+    {
+        DB::get_schema()->schemaUpdate(fn() => File::singleton()->requireTable());
+
+        $indexes = DB::get_schema()->indexList('File');
+
+        $this->assertArrayHasKey('default_asset_sort', $indexes);
+        $this->assertSame('default_asset_sort', $indexes['default_asset_sort']['name']);
+        $this->assertSame('index', $indexes['default_asset_sort']['type']);
+        $this->assertSame(
+            ['ParentID ASC', 'IsFolder DESC', 'Title ASC'],
+            array_values($indexes['default_asset_sort']['columns'])
+        );
+    }
+
+    public function testFileTableCanAlterClassNameWhenUsingDbClassNameVarchar()
+    {
+        DB::get_schema()->schemaUpdate(fn() => File::singleton()->requireTable());
+
+        $originalFixedFields = Config::inst()->get(DataObject::class, 'fixed_fields');
+        $updatedFixedFields = $originalFixedFields;
+        $updatedFixedFields['ClassName'] = 'DBClassNameVarchar';
+        Config::modify()->set(DataObject::class, 'fixed_fields', $updatedFixedFields);
+
+        try {
+            DataObject::reset();
+            DB::get_schema()->schemaUpdate(fn() => File::singleton()->requireTable());
+
+            $classNameSpec = DB::get_schema()->fieldList('File')['ClassName'];
+            $this->assertStringContainsString('VARCHAR', strtoupper($classNameSpec));
+        } finally {
+            Config::modify()->set(DataObject::class, 'fixed_fields', $originalFixedFields);
+            DataObject::reset();
+            DB::get_schema()->schemaUpdate(fn() => File::singleton()->requireTable());
+        }
+    }
+
+    public function testGeneratedColumnsAreComputedAndRejectManualUpdates()
+    {
+        $table = 'SQLite3SchemaRegression_GeneratedColumns';
+        DB::get_schema()->schemaUpdate(function () use ($table) {
+            DB::require_table($table, [
+                'BaseField' => 'Varchar(255)',
+                'GeneratedField' => 'Generated("Varchar(255)", "CONCAT(\\"BaseField\\", \'_etc\')", "STORED")',
+            ]);
+        });
+
+        DB::query(sprintf('INSERT INTO "%s" ("BaseField") VALUES (\'Some Value\')', $table));
+        $record = DB::query(sprintf('SELECT "ID", "GeneratedField" FROM "%s"', $table))->record();
+
+        $this->assertSame('Some Value_etc', $record['GeneratedField']);
+
+        $this->expectException(GeneratedColumnValueException::class);
+        DB::prepared_query(
+            sprintf(
+                'UPDATE "%s" SET "GeneratedField" = ? WHERE "ID" = ?',
+                $table
+            ),
+            ['manual value', $record['ID']]
+        );
     }
 }

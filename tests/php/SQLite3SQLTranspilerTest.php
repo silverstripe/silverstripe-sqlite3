@@ -114,6 +114,20 @@ INNER JOIN "SQLUpdateTestOther" ON "SQLUpdateTestOther"."Description" = "SQLUpda
         );
     }
 
+    public function testShowKeysRewrite()
+    {
+        $mysqlSql = 'SHOW KEYS FROM _sessions WHERE "Key_name" = \'PRIMARY\'';
+
+        $sqliteSql = $this->transpiler->transpile($mysqlSql);
+
+        $this->assertSame(
+            'SELECT name AS "Column_name", \'PRIMARY\' AS "Key_name", pk AS "Seq_in_index" '
+            . 'FROM pragma_table_info(\'_sessions\') WHERE pk > 0',
+            $sqliteSql
+        );
+        $this->assertTrue($this->transpiler->didTranspile());
+    }
+
     /**
      * Test that non-UNION queries are not modified
      */

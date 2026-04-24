@@ -6,6 +6,7 @@ use Exception;
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\Debug;
 use SilverStripe\ORM\Connect\DBSchemaManager;
+use SilverStripe\ORM\FieldType\DBGenerated;
 use SQLite3;
 
 /**
@@ -146,6 +147,8 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         if (!isset($fields['ID'])) {
             $fields['ID'] = $this->IdColumn();
+        } elseif (stripos($fields['ID'], 'primary key') === false) {
+            $fields['ID'] .= ' PRIMARY KEY';
         }
 
         $fieldSchemata = array();
@@ -257,7 +260,6 @@ class SQLite3SchemaManager extends DBSchemaManager
     public function alterField($tableName, $fieldName, $fieldSpec)
     {
         $oldFieldList = $this->fieldList($tableName);
-        $fieldNameList = '"' . implode('","', array_keys($oldFieldList)) . '"';
 
         if (!empty($_REQUEST['avoidConflict']) && Director::isDev()) {
             $fieldSpec = preg_replace('/\snot null\s/i', ' NOT NULL ON CONFLICT REPLACE ', $fieldSpec);
@@ -270,13 +272,23 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Update field spec
         $newColsSpec = array();
+        $insertColumns = array();
+        $selectColumns = array();
         foreach ($oldFieldList as $name => $oldSpec) {
-            $newColsSpec[] = "\"$name\" " . ($name == $fieldName ? $fieldSpec : $oldSpec);
+            $newSpec = $name == $fieldName ? $fieldSpec : $oldSpec;
+            $newColsSpec[] = "\"$name\" " . $newSpec;
+            if (!$this->isGeneratedColumnSpec($newSpec)) {
+                $insertColumns[] = "\"$name\"";
+                $selectColumns[] = "\"$name\"";
+            }
         }
+
+        $insertColumnList = implode(',', $insertColumns);
+        $selectColumnList = implode(',', $selectColumns);
 
         $queries = array(
             "CREATE TABLE \"{$tableName}_alterfield_{$fieldName}\"(" . implode(',', $newColsSpec) . ")",
-            "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" SELECT {$fieldNameList} FROM \"$tableName\"",
+            "INSERT INTO \"{$tableName}_alterfield_{$fieldName}\" ({$insertColumnList}) SELECT {$selectColumnList} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_alterfield_{$fieldName}\" RENAME TO \"$tableName\"",
         );
@@ -309,18 +321,24 @@ class SQLite3SchemaManager extends DBSchemaManager
 
         // Determine column mappings
         $oldCols = array();
+        $insertColumns = array();
         $newColsSpec = array();
         foreach ($oldFieldList as $name => $spec) {
-            $oldCols[] = "\"$name\"" . (($name == $oldName) ? " AS $newName" : '');
-            $newColsSpec[] = "\"" . (($name == $oldName) ? $newName : $name) . "\" $spec";
+            $targetName = ($name == $oldName) ? $newName : $name;
+            $newColsSpec[] = "\"{$targetName}\" $spec";
+            if (!$this->isGeneratedColumnSpec($spec)) {
+                $insertColumns[] = "\"{$targetName}\"";
+                $oldCols[] = "\"$name\"" . (($name == $oldName) ? " AS $newName" : '');
+            }
         }
 
         // SQLite doesn't support direct renames through ALTER TABLE
         $oldColsStr = implode(',', $oldCols);
+        $insertColsStr = implode(',', $insertColumns);
         $newColsSpecStr = implode(',', $newColsSpec);
         $queries = array(
             "CREATE TABLE \"{$tableName}_renamefield_{$oldName}\" ({$newColsSpecStr})",
-            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" SELECT {$oldColsStr} FROM \"$tableName\"",
+            "INSERT INTO \"{$tableName}_renamefield_{$oldName}\" ({$insertColsStr}) SELECT {$oldColsStr} FROM \"$tableName\"",
             "DROP TABLE \"$tableName\"",
             "ALTER TABLE \"{$tableName}_renamefield_{$oldName}\" RENAME TO \"$tableName\"",
         );
@@ -395,8 +413,12 @@ class SQLite3SchemaManager extends DBSchemaManager
      */
     public function createIndex($tableName, $indexName, $indexSpec)
     {
+        if (!empty($indexSpec['drop'])) {
+            return;
+        }
+
         $sqliteName = $this->buildSQLiteIndexName($tableName, $indexName);
-        $columns = $this->implodeColumnList($indexSpec['columns']);
+        $columns = $this->implodeIndexColumnList($indexSpec['columns'], $indexSpec['type']);
         $unique = ($indexSpec['type'] == 'unique') ? 'UNIQUE' : '';
         $this->query("CREATE $unique INDEX IF NOT EXISTS \"$sqliteName\" ON \"$tableName\" ($columns)");
     }
@@ -408,7 +430,9 @@ class SQLite3SchemaManager extends DBSchemaManager
         $this->query("DROP INDEX IF EXISTS \"$sqliteName\"");
 
         // Create the index
-        $this->createIndex($tableName, $indexName, $indexSpec);
+        if (empty($indexSpec['drop'])) {
+            $this->createIndex($tableName, $indexName, $indexSpec);
+        }
     }
 
     /**
@@ -428,7 +452,7 @@ class SQLite3SchemaManager extends DBSchemaManager
 
     public function indexKey($table, $index, $spec)
     {
-        return $this->buildSQLiteIndexName($table, $index);
+        return $index;
     }
 
     protected function convertIndexSpec($indexSpec)
@@ -440,21 +464,50 @@ class SQLite3SchemaManager extends DBSchemaManager
         return parent::convertIndexSpec($indexSpec);
     }
 
+    public function makeGenerated(string $spec, array $origSpec, string $expression, string $generationType): string
+    {
+        $expression = $this->normaliseGeneratedColumnExpression($expression);
+        $generationType = strtoupper($generationType);
+        if (!in_array($generationType, [DBGenerated::GENERATION_STORED, DBGenerated::GENERATION_VIRTUAL], true)) {
+            $generationType = DBGenerated::GENERATION_VIRTUAL;
+        }
+
+        $spec = preg_replace('/\s+DEFAULT\s+(?:\'[^\']*(?:\'\'[^\']*)*\'|[^\s,]+)/i', '', $spec);
+        $spec = preg_replace('/\s+NOT\s+NULL\b/i', '', $spec);
+        $spec = trim(preg_replace('/\s+/', ' ', $spec));
+
+        return "$spec GENERATED ALWAYS AS ($expression) $generationType";
+    }
+
     public function indexList($table)
     {
         $indexList = array();
 
         // Enumerate each index and related fields
         foreach ($this->query("PRAGMA index_list(\"$table\")") as $index) {
-            // The SQLite internal index name, not the actual Silverstripe name
-            $indexName = $index["name"];
+            $sqliteName = $index['name'];
+            $indexName = $this->parseSQLiteIndexName($table, $sqliteName);
+            if ($indexName === null) {
+                continue;
+            }
             $indexType = $index['unique'] ? 'unique' : 'index';
 
             // Determine a clean list of column names within this index
             $list = array();
-            foreach ($this->query("PRAGMA index_info(\"$indexName\")") as $details) {
-                $list[] = preg_replace('/^"?(.*)"?$/', '$1', $details['name'] ?? '');
+            foreach ($this->query("PRAGMA index_xinfo(\"$sqliteName\")") as $details) {
+                if (empty($details['key']) || ($details['cid'] ?? -1) < 0 || empty($details['name'])) {
+                    continue;
+                }
+
+                $column = preg_replace('/^"?(.*)"?$/', '$1', $details['name'] ?? '');
+                $column .= !empty($details['desc']) ? ' DESC' : ' ASC';
+                $list[(int) $details['seqno']] = $column;
             }
+
+            if (!$list) {
+                continue;
+            }
+            ksort($list);
 
             // Safely encode this spec
             $indexList[$indexName] = array(
@@ -465,6 +518,93 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
 
         return $indexList;
+    }
+
+    protected function parseSQLiteIndexName(string $table, string $sqliteName): ?string
+    {
+        if (strpos($sqliteName, 'sqlite_autoindex_') === 0) {
+            return null;
+        }
+
+        $prefix = $table . '_';
+        if (strpos($sqliteName, $prefix) === 0) {
+            return substr($sqliteName, strlen($prefix));
+        }
+
+        return $sqliteName;
+    }
+
+    private function normaliseGeneratedColumnExpression(string $expression): string
+    {
+        $expression = trim($expression);
+        if (!preg_match('/^CONCAT\s*\((.*)\)$/is', $expression, $matches)) {
+            return $expression;
+        }
+
+        $parts = array_map(
+            fn(string $part): string => $this->normaliseGeneratedColumnExpression(trim($part)),
+            $this->splitSqlArgumentList($matches[1])
+        );
+
+        return implode(' || ', $parts);
+    }
+
+    private function splitSqlArgumentList(string $arguments): array
+    {
+        $parts = [];
+        $current = '';
+        $depth = 0;
+        $quote = null;
+        $length = strlen($arguments);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $arguments[$i];
+
+            if ($quote !== null) {
+                $current .= $char;
+                if ($char === $quote && ($i === 0 || $arguments[$i - 1] !== '\\')) {
+                    $quote = null;
+                }
+                continue;
+            }
+
+            if ($char === '"' || $char === '\'') {
+                $quote = $char;
+                $current .= $char;
+                continue;
+            }
+
+            if ($char === '(') {
+                $depth++;
+                $current .= $char;
+                continue;
+            }
+
+            if ($char === ')') {
+                $depth--;
+                $current .= $char;
+                continue;
+            }
+
+            if ($char === ',' && $depth === 0) {
+                $parts[] = $current;
+                $current = '';
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        if ($current !== '') {
+            $parts[] = $current;
+        }
+
+        return $parts;
+    }
+
+    private function isGeneratedColumnSpec(string $spec): bool
+    {
+        return stripos($spec, 'GENERATED ALWAYS AS') !== false;
     }
 
     public function tableList()
