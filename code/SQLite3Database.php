@@ -44,6 +44,13 @@ class SQLite3Database extends Database
      */
     protected $schemaManager = null;
 
+    /**
+     * SQL transpiler for MySQL-specific ORM output.
+     *
+     * @var SQLite3SQLTranspiler|null
+     */
+    protected $transpiler = null;
+
     /*
      * This holds the parameters that the original connection was created with,
      * so we can switch back to it if necessary (used for unit tests)
@@ -397,7 +404,7 @@ class SQLite3Database extends Database
         // Process queries
         foreach ($classesToSearch as $class) {
             // There's no need to do all that joining
-            $queries[$class]->setFrom('"'.DataObject::getSchema()->baseDataTable($class).'"');
+            $queries[$class]->setFrom('"' . DataObject::getSchema()->baseDataTable($class) . '"');
             $queries[$class]->setSelect(array());
             foreach ($select[$class] as $clause) {
                 if (preg_match('/^(.*) +AS +"?([^"]*)"?/i', $clause ?? '', $matches)) {
@@ -599,12 +606,26 @@ class SQLite3Database extends Database
 
     public function query($sql, $errorLevel = E_USER_ERROR)
     {
+        $sql = $this->getTranspiler()->transpile($sql);
         return parent::query($sql, $errorLevel);
     }
 
     public function preparedQuery($sql, $parameters, $errorLevel = E_USER_ERROR)
     {
+        $sql = $this->getTranspiler()->transpile($sql);
         return parent::preparedQuery($sql, $parameters, $errorLevel);
+    }
+
+    /**
+     * @return SQLite3SQLTranspiler
+     */
+    protected function getTranspiler()
+    {
+        if (!$this->transpiler) {
+            $this->transpiler = new SQLite3SQLTranspiler();
+        }
+
+        return $this->transpiler;
     }
 
     public function clearTable($table)

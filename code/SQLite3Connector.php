@@ -29,8 +29,8 @@ class SQLite3Connector extends DBConnector
     {
         $file = $parameters['filepath'];
         $this->dbConn = empty($parameters['key'])
-                ? new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE)
-                : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
+            ? new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE)
+            : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
         $this->dbConn->busyTimeout(60000);
         $this->databaseName = $parameters['database'];
     }
@@ -128,17 +128,31 @@ class SQLite3Connector extends DBConnector
         $parsedParameters = $this->parsePreparedParameters($parameters);
 
         // Prepare statement
-        $statement = @$this->dbConn->prepare($sql);
+        try {
+            $statement = @$this->dbConn->prepare($sql);
+        } catch (\Throwable $e) {
+            $values = $this->parameterValues($parameters);
+            $this->throwRelevantError($e->getMessage(), $errorLevel, $sql, $values);
+            return null;
+        }
+
         if ($statement) {
             // Bind and run to statement
             for ($i = 0; $i < count($parsedParameters); $i++) {
                 $value = $parsedParameters[$i]['value'];
                 $type = $parsedParameters[$i]['type'];
-                $statement->bindValue($i+1, $value, $type);
+                $statement->bindValue($i + 1, $value, $type);
             }
 
             // Return successful result
-            $handle = $statement->execute();
+            try {
+                $handle = $statement->execute();
+            } catch (\Throwable $e) {
+                $values = $this->parameterValues($parameters);
+                $this->throwRelevantError($e->getMessage(), $errorLevel, $sql, $values);
+                return null;
+            }
+
             if ($handle) {
                 return new SQLite3Query($this, $handle);
             }
@@ -146,26 +160,65 @@ class SQLite3Connector extends DBConnector
 
         // Handle error
         $values = $this->parameterValues($parameters);
-        $this->databaseError($this->getLastError(), $errorLevel, $sql, $values);
+        $this->throwRelevantError($this->getLastError(), $errorLevel, $sql, $values);
         return null;
     }
 
     public function query($sql, $errorLevel = E_USER_ERROR)
     {
         // Return successful result
-        $handle = @$this->dbConn->query($sql);
+        try {
+            $handle = @$this->dbConn->query($sql);
+        } catch (\Throwable $e) {
+            $this->throwRelevantError($e->getMessage(), $errorLevel, $sql);
+            return null;
+        }
+
         if ($handle) {
             return new SQLite3Query($this, $handle);
         }
 
         // Handle error
-        $this->databaseError($this->getLastError(), $errorLevel, $sql);
+        $this->throwRelevantError($this->getLastError(), $errorLevel, $sql);
         return null;
+    }
+
+    /**
+     * Translate SQLite-specific errors into framework-aware exceptions where possible.
+     *
+     * @param string|null $message
+     * @param int $errorLevel
+     * @param string|null $sql
+     * @param array $parameters
+     */
+    protected function throwRelevantError($message, $errorLevel, $sql = null, $parameters = [])
+    {
+        $isUniqueError = $errorLevel === E_USER_ERROR
+            && is_string($message)
+            && strpos($message, 'UNIQUE constraint failed: ') !== false;
+
+        if ($isUniqueError) {
+            preg_match('/UNIQUE constraint failed: (?P<fields>.+)$/', $message, $matches);
+
+            $resolver = new SQLite3DuplicateEntryResolver($this->dbConn, [$this, 'parsePreparedParameters']);
+            $resolved = $resolver->resolve(isset($matches['fields']) ? $matches['fields'] : '', $sql, $parameters);
+
+            $this->duplicateEntryError(
+                $message,
+                isset($resolved['key']) ? $resolved['key'] : null,
+                isset($resolved['value']) ? $resolved['value'] : null,
+                $sql,
+                $parameters
+            );
+            return;
+        }
+
+        $this->databaseError($message, $errorLevel, $sql, $parameters);
     }
 
     public function quoteString($value)
     {
-        return "'".$this->escapeString($value)."'";
+        return "'" . $this->escapeString($value) . "'";
     }
 
     public function escapeString($value)

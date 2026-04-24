@@ -90,7 +90,7 @@ class SQLite3Query extends Query
             }
 
             // Buffer is exhausted - now check if we can fetch more
-            
+
             // If handle is not iterable, we're done
             if (!$this->handle->numColumns()) {
                 $this->currentIndex = 0;
