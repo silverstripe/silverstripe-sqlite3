@@ -609,6 +609,12 @@ class SQLite3SchemaManager extends DBSchemaManager
         return stripos($spec, 'GENERATED ALWAYS AS') !== false;
     }
 
+    private function stringFieldNullifiesEmpty(array $values): bool
+    {
+        $arrayValue = $values['arrayValue'] ?? '';
+        return !preg_match('/[\"\']?nullifyEmpty[\"\']?\s*=>\s*false/i', $arrayValue);
+    }
+
     public function tableList()
     {
         $tables = array();
@@ -789,7 +795,12 @@ class SQLite3SchemaManager extends DBSchemaManager
      */
     public function text($values)
     {
-        return 'TEXT';
+        $nullifyEmpty = $this->stringFieldNullifiesEmpty($values);
+        $default = array_key_exists('default', $values) && $values['default'] !== null
+            ? ' DEFAULT ' . $this->database->quoteString($values['default'])
+            : (!$nullifyEmpty ? " DEFAULT ''" : '');
+
+        return 'TEXT' . $default;
     }
 
     /**
@@ -811,7 +822,12 @@ class SQLite3SchemaManager extends DBSchemaManager
      */
     public function varchar($values)
     {
-        return "VARCHAR({$values['precision']}) COLLATE NOCASE";
+        $nullifyEmpty = $this->stringFieldNullifiesEmpty($values);
+        $default = array_key_exists('default', $values) && $values['default'] !== null
+            ? ' DEFAULT ' . $this->database->quoteString($values['default'])
+            : (!$nullifyEmpty ? " DEFAULT ''" : '');
+
+        return "VARCHAR({$values['precision']}) COLLATE NOCASE{$default}";
     }
 
     /*

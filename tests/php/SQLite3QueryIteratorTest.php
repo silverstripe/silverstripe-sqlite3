@@ -306,4 +306,33 @@ class SQLite3QueryIteratorTest extends SapphireTest
             ['manual value', $record['ID']]
         );
     }
+
+    public function testStringFieldSpecsPreserveDefaultsAndNullableEmptyStrings()
+    {
+        $table = 'SQLite3SchemaRegression_StringDefaults';
+        DB::get_schema()->schemaUpdate(function () use ($table) {
+            DB::require_table($table, [
+                'Title' => 'Varchar(129)',
+                'NullableField' => 'Varchar(111, ["nullifyEmpty" => false])',
+                'HasDefault' => 'Varchar(50, ["default" => "default value"])',
+                'HasDefaultOldSyntax' => 'Varchar(50, array("default" => "default value"))',
+            ]);
+        });
+
+        DB::query(sprintf('INSERT INTO "%s" DEFAULT VALUES', $table));
+        $record = DB::query(sprintf(
+            'SELECT "Title", "NullableField", "HasDefault", "HasDefaultOldSyntax" FROM "%s"',
+            $table
+        ))->record();
+
+        $this->assertSame(null, $record['Title']);
+        $this->assertSame('', $record['NullableField']);
+        $this->assertSame('default value', $record['HasDefault']);
+        $this->assertSame('default value', $record['HasDefaultOldSyntax']);
+
+        DB::query(sprintf('UPDATE "%s" SET "NullableField" = NULL', $table));
+        $record = DB::query(sprintf('SELECT "NullableField" FROM "%s"', $table))->record();
+
+        $this->assertSame(null, $record['NullableField']);
+    }
 }
