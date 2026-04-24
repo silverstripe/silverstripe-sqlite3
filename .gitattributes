@@ -1,0 +1,30 @@
+# Git attributes for silverstripe/sqlite3 module
+# See: https://git-scm.com/docs/gitattributes
+
+# Export-ignore: files not needed in composer dist packages
+
+# CI/GitHub (uses GitHub Actions, not Travis)
+/.github/ export-ignore
+/.travis.yml export-ignore
+
+# Development and testing configuration
+/.editorconfig export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.upgrade.yml export-ignore
+/phpunit.xml.dist export-ignore
+
+# Cache files
+/.phpunit.result.cache export-ignore
+/.phpunit.cache/ export-ignore
+
+# Documentation (optional - uncomment if you want to exclude from dist)
+# /docs/ export-ignore
+# /README.md export-ignore
+
+# Set line endings for specific file types
+*.php text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.xml text eol=lf
+*.md text eol=lf
