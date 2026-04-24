@@ -437,6 +437,33 @@ class SQLite3SchemaManager extends DBSchemaManager
         }
     }
 
+    protected function implodeIndexColumnList(array $columns, string $indexType): string
+    {
+        if (method_exists(get_parent_class($this), __FUNCTION__)) {
+            return parent::implodeIndexColumnList($columns, $indexType);
+        }
+
+        if (empty($columns)) {
+            return '';
+        }
+
+        if (!in_array($indexType, ['index', 'unique'], true)) {
+            return $this->implodeColumnList($columns);
+        }
+
+        $result = [];
+        foreach ($columns as $column) {
+            if (preg_match('/^(.*)\s+(asc|desc)$/i', $column ?? '', $matches)) {
+                $result[] = sprintf('"%s" %s', trim($matches[1]), strtoupper($matches[2]));
+                continue;
+            }
+
+            $result[] = sprintf('"%s" ASC', trim($column));
+        }
+
+        return implode(',', $result);
+    }
+
     /**
      * Builds the internal SQLLite index name given the silverstripe table and index name.
      *
