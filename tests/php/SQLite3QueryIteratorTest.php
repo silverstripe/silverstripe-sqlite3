@@ -3,12 +3,12 @@
 namespace SilverStripe\SQLite\Tests;
 
 use SilverStripe\Assets\File;
-use SilverStripe\Control\SessionHandler\DatabaseSessionHandler;
 use SilverStripe\Core\Config\Config;
 use SilverStripe\Dev\SapphireTest;
 use SilverStripe\ORM\Connect\GeneratedColumnValueException;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
+use SilverStripe\ORM\FieldType\DBGenerated;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\View\TemplateEngine;
 use SilverStripe\View\ViewLayerData;
@@ -235,10 +235,12 @@ class SQLite3QueryIteratorTest extends SapphireTest
 
     public function testShowKeysReportsPrimaryKeyForExplicitIdTable()
     {
-        $handler = new DatabaseSessionHandler();
-        DB::get_schema()->schemaUpdate(fn() => $handler->requireTable());
+        $table = 'SQLite3SchemaRegression_ExplicitIdTable';
+        DB::get_schema()->schemaUpdate(fn() => DB::require_table($table, [
+            'ID' => 'PrimaryKey',
+            'Payload' => 'Text',
+        ]));
 
-        $table = DatabaseSessionHandler::config()->get('table_name');
         $record = DB::query('SHOW KEYS FROM ' . $table . ' WHERE "Key_name" = \'PRIMARY\'')->record();
 
         $this->assertSame('ID', $record['Column_name']);
@@ -285,10 +287,15 @@ class SQLite3QueryIteratorTest extends SapphireTest
     public function testGeneratedColumnsAreComputedAndRejectManualUpdates()
     {
         $table = 'SQLite3SchemaRegression_GeneratedColumns';
-        DB::get_schema()->schemaUpdate(function () use ($table) {
+        $generatedFieldSpec = sprintf(
+            '%s("Varchar(255)", "CONCAT(\\"BaseField\\", \'_etc\')", "STORED")',
+            DBGenerated::class
+        );
+
+        DB::get_schema()->schemaUpdate(function () use ($table, $generatedFieldSpec) {
             DB::require_table($table, [
                 'BaseField' => 'Varchar(255)',
-                'GeneratedField' => 'Generated("Varchar(255)", "CONCAT(\\"BaseField\\", \'_etc\')", "STORED")',
+                'GeneratedField' => $generatedFieldSpec,
             ]);
         });
 
