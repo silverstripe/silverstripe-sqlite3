@@ -101,6 +101,11 @@ class SQLite3Query extends Query
 
             yield $data;
         }
+
+        // Match MySQLQuery/MySQLStatement semantics: a fully exhausted iteration
+        // should leave the query ready for a subsequent pass. DataList eager loading
+        // relies on Query::column() consuming the result without permanently advancing it.
+        $this->rewind();
     }
 
     public function rewind()
