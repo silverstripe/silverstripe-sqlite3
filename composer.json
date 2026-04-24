@@ -34,12 +34,12 @@
     "scripts": {
         "lint": "phpcs",
         "lint-clean": "phpcbf",
-        "test": "phpunit --testsuite sqlite3-module",
-        "test-filter": "phpunit --filter",
-        "test-eager-loading": "phpunit vendor/silverstripe/framework/tests/php/ORM/DataListEagerLoadingTest.php",
-        "test-eager-loading-filter": "phpunit vendor/silverstripe/framework/tests/php/ORM/DataListEagerLoadingTest.php --filter",
-        "test-framework-orm": "phpunit vendor/silverstripe/framework/tests/php/ORM/",
-        "test-all": "phpunit"
+        "test": "@php bin/run.php DB=SQLITE vendor/bin/phpunit --testsuite framework",
+        "test-local": "@php bin/run.php DB=SQLITE vendor/bin/phpunit --testsuite sqlite3",
+        "test-orm": "@php bin/run.php DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/",
+        "test-orm-stop": "@php bin/run.php DB=SQLITE vendor/bin/phpunit --stop-on-failure vendor/silverstripe/framework/tests/php/ORM/",
+        "test-eager-loading": "@php bin/run.php DB=SQLITE vendor/bin/phpunit vendor/silverstripe/framework/tests/php/ORM/DataListEagerLoadingTest.php",
+        "test-all": "@php bin/run.php DB=SQLITE vendor/bin/phpunit"
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

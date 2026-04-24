@@ -67,14 +67,11 @@ class SQLite3Query extends Query
 
     /**
      * @todo This looks terrible but there is no SQLite3::get_num_rows() implementation
+     *
+     * Drains any remaining rows into the buffer and returns the total count.
      */
     public function numRecords()
     {
-        // Some queries are not iterable using fetchArray like CREATE statement
-        if (!$this->handle->numColumns()) {
-            return 0;
-        }
-
         $this->loadAllRows();
 
         return count($this->rows);
@@ -82,47 +79,68 @@ class SQLite3Query extends Query
 
     public function getIterator(): Traversable
     {
-        while (isset($this->rows[$this->currentIndex])) {
-            $row = $this->rows[$this->currentIndex];
-            $this->currentIndex++;
-
-            yield $row;
-        }
-
-        while (!$this->exhausted) {
-            $data = $this->handle->fetchArray(SQLITE3_ASSOC);
-            if ($data === false) {
-                $this->exhausted = true;
-                break;
+        while (true) {
+            // CRITICAL: Always check buffer FIRST before any handle operations
+            // This ensures buffered rows are yielded even if handle is exhausted
+            if (array_key_exists($this->currentIndex, $this->rows)) {
+                $row = $this->rows[$this->currentIndex];
+                $this->currentIndex++;
+                yield $row;
+                continue;
             }
 
-            $this->rows[] = $data;
+            // Buffer is exhausted - now check if we can fetch more
+            
+            // If handle is not iterable, we're done
+            if (!$this->handle->numColumns()) {
+                $this->currentIndex = 0;
+                return;
+            }
+
+            // If handle was previously exhausted, don't try to fetch again
+            // (SQLite would restart from beginning, causing duplicates)
+            if ($this->exhausted) {
+                $this->currentIndex = 0;
+                return;
+            }
+
+            // Try to fetch from handle
+            $row = $this->handle->fetchArray(SQLITE3_ASSOC);
+            if ($row === false) {
+                // Mark as exhausted so we never try to fetch again
+                $this->exhausted = true;
+                $this->currentIndex = 0;
+                return;
+            }
+
+            // Buffer the row and yield it
+            $this->rows[] = $row;
             $this->currentIndex++;
-
-            yield $data;
+            yield $row;
         }
-
-        // Match MySQLQuery/MySQLStatement semantics: a fully exhausted iteration
-        // should leave the query ready for a subsequent pass. DataList eager loading
-        // relies on Query::column() consuming the result without permanently advancing it.
-        $this->rewind();
     }
 
-    public function rewind()
+    public function rewind(): void
     {
         $this->currentIndex = 0;
     }
 
+    /**
+     * Drains the native handle into the local buffer until EOF.
+     */
     protected function loadAllRows()
     {
-        while (!$this->exhausted) {
-            $data = $this->handle->fetchArray(SQLITE3_ASSOC);
-            if ($data === false) {
-                $this->exhausted = true;
-                break;
-            }
-
-            $this->rows[] = $data;
+        // Some queries are not iterable using fetchArray like CREATE statement.
+        if ($this->exhausted || !$this->handle->numColumns()) {
+            $this->exhausted = true;
+            return;
         }
+
+        while ($row = $this->handle->fetchArray(SQLITE3_ASSOC)) {
+            $this->rows[] = $row;
+        }
+
+        // SQLite restarts from the first row after EOF, so never fetch again once exhausted.
+        $this->exhausted = true;
     }
 }
