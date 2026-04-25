@@ -143,7 +143,7 @@ INNER JOIN "SQLUpdateTestOther" ON "SQLUpdateTestOther"."Description" = "SQLUpda
 
         $this->assertSame(
             'SELECT name AS "Column_name", \'PRIMARY\' AS "Key_name", pk AS "Seq_in_index" '
-            . 'FROM pragma_table_info(\'_sessions\') WHERE pk > 0',
+                . 'FROM pragma_table_info(\'_sessions\') WHERE pk > 0',
             $sqliteSql
         );
         $this->assertTrue($this->transpiler->didTranspile());
@@ -407,7 +407,8 @@ INNER JOIN "SQLUpdateTestOther" ON "SQLUpdateTestOther"."Description" = "SQLUpda
 
         $sqliteSql = $this->transpiler->transpile($mysqlSql);
 
-        $expectedSql = 'SELECT * FROM "Table" ORDER BY CASE "Status" WHEN \'active\' THEN 0 WHEN \'pending\' THEN 1 WHEN \'archived\' THEN 2 ELSE 3 END';
+        $expectedSql = 'SELECT * FROM "Table" ORDER BY CASE "Status" '
+            . 'WHEN \'active\' THEN 0 WHEN \'pending\' THEN 1 WHEN \'archived\' THEN 2 ELSE 3 END';
 
         $this->assertSame($expectedSql, $sqliteSql);
         $this->assertTrue($this->transpiler->didTranspile());
@@ -424,7 +425,10 @@ INNER JOIN "SQLUpdateTestOther" ON "SQLUpdateTestOther"."Description" = "SQLUpda
 
         $sqliteSql = $this->transpiler->transpile($mysqlSql);
 
-        $this->assertStringContainsString('ORDER BY CASE ID WHEN 5 THEN 0 WHEN 2 THEN 1 WHEN 8 THEN 2 WHEN 1 THEN 3 ELSE 4 END', $sqliteSql);
+        $this->assertStringContainsString(
+            'ORDER BY CASE ID WHEN 5 THEN 0 WHEN 2 THEN 1 WHEN 8 THEN 2 WHEN 1 THEN 3 ELSE 4 END',
+            $sqliteSql
+        );
         $this->assertTrue($this->transpiler->didTranspile());
     }
 
