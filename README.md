@@ -18,8 +18,10 @@ composer require silverstripe/sqlite3
 Either use the installer to automatically install SQLite or add this to your _config.php (right after
 "require_once("conf/ConfigureFromEnv.php");" if you are using _ss_environment.php)
 
-	$databaseConfig['type'] = 'SQLite3Database';
-	$databaseConfig['path'] = "/path/to/my/database/file";
+```php
+$databaseConfig['type'] = 'SQLite3Database';
+$databaseConfig['path'] = "/path/to/my/database/file";
+```
 
 Make sure the webserver has sufficient privileges to write to that folder and that it is protected from
 external access.
@@ -57,8 +59,26 @@ it might corrupt existing records. In order to perform the action anyway add the
 running dev/build which temporarily adds a conflict clause to the field spec.
 E.g.: http://www.my-project.com/?avoidConflict=1
 
+## MySQL Compatibility
+
+Enable optional MySQL-to-SQLite transpilation for custom queries:
+
+```yaml
+SilverStripe\SQLite\SQLite3SQLTranspiler:
+  enable_mysql_compat: true
+```
+
+Converts MySQL functions to SQLite equivalents:
+
+| MySQL | SQLite |
+|-------|--------|
+| `STRAIGHT_JOIN` | `JOIN` |
+| `ON DUPLICATE KEY UPDATE` | `ON CONFLICT(...) DO UPDATE SET` |
+| `NOW()` | `datetime('now')` |
+| `UNIX_TIMESTAMP()` | `strftime('%s', 'now')` |
+| `UNIX_TIMESTAMP(date)` | `strftime('%s', date)` |
+
 ## Open Issues
 
-- SQLite3 is supposed to work with all may not work with certain modules as they are using custom SQL statements
-  passed to the DB class directly ;(
-- there is no real fulltext search yet and the build-in search engine is not ordering by relevance, check out fts3
+- Third-party modules with MySQL-specific SQL may need `enable_mysql_compat` enabled (see above)
+- No fulltext search; built-in search doesn't order by relevance. Check out fts3
