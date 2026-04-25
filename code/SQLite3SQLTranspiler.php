@@ -2,17 +2,34 @@
 
 namespace SilverStripe\SQLite;
 
+use SilverStripe\Core\Config\Configurable;
 use SilverStripe\Core\Environment;
 
 /**
- * Transpiles MySQL-compatible SQL to SQLite-compatible SQL
+ * Transpiles MySQL-compatible SQL to SQLite-compatible SQL.
  *
  * This class handles transformations between database-specific syntaxes,
  * allowing the ORM to generate MySQL-style SQL while SQLite executes
  * the transpiled version.
+ *
+ * Configuration:
+ * - enable_mysql_compat: Enable optional MySQL compatibility features like
+ *   STRAIGHT_JOIN, ON DUPLICATE KEY UPDATE, NOW(), and UNIX_TIMESTAMP() support.
+ *   These are disabled by default as they're only needed for custom MySQL queries,
+ *   not SilverStripe framework operations. (default: false)
  */
 class SQLite3SQLTranspiler
 {
+    use Configurable;
+
+    /**
+     * Enable optional MySQL compatibility features (STRAIGHT_JOIN, ON DUPLICATE KEY UPDATE,
+     * NOW(), UNIX_TIMESTAMP()). Disabled by default.
+     *
+     * @config
+     */
+    private static bool $enable_mysql_compat = false;
+
     /**
      * Track if any transpilation occurred
      */
@@ -29,10 +46,19 @@ class SQLite3SQLTranspiler
         $this->didTranspile = false;
         $originalSql = $sql;
 
-        // Apply transformations in order
+        // Framework-required transpilations (always active)
         $sql = $this->removeUnionParentheses($sql);
         $sql = $this->rewriteUpdateJoin($sql);
         $sql = $this->rewriteShowKeys($sql);
+
+        // Optional MySQL compatibility features (opt-in)
+        if ($this->config()->get('enable_mysql_compat')) {
+            $sql = $this->rewriteStraightJoin($sql);
+            $sql = $this->rewriteOnDuplicateKeyUpdate($sql);
+            $sql = $this->rewriteNowFunction($sql);
+            $sql = $this->rewriteUnixTimestamp($sql);
+            $sql = $this->rewriteOrderByField($sql);
+        }
 
         // Check if transpilation occurred
         if ($sql !== $originalSql) {
@@ -51,6 +77,48 @@ class SQLite3SQLTranspiler
     public function didTranspile(): bool
     {
         return $this->didTranspile;
+    }
+
+    /**
+     * Temporarily replace string literals with placeholders to protect them from regex transformations.
+     *
+     * @param string $sql
+     * @return array{sql: string, literals: array<string>}
+     */
+    protected function protectStringLiterals(string $sql): array
+    {
+        $literals = [];
+        $counter = 0;
+
+        // Match single-quoted strings, handling escaped quotes ('') and backslash escapes
+        $pattern = "/'(?:[^'\\\\]|\\\\.|'')*'/s";
+
+        $sql = preg_replace_callback(
+            $pattern,
+            function (array $matches) use (&$literals, &$counter): string {
+                $placeholder = "\x00LITERAL_" . $counter++ . "\x00";
+                $literals[$placeholder] = $matches[0];
+                return $placeholder;
+            },
+            $sql
+        );
+
+        return ['sql' => $sql, 'literals' => $literals];
+    }
+
+    /**
+     * Restore string literals from placeholders.
+     *
+     * @param string $sql
+     * @param array<string> $literals
+     * @return string
+     */
+    protected function restoreStringLiterals(string $sql, array $literals): string
+    {
+        foreach ($literals as $placeholder => $literal) {
+            $sql = str_replace($placeholder, $literal, $sql);
+        }
+        return $sql;
     }
 
     /**
@@ -101,6 +169,9 @@ class SQLite3SQLTranspiler
      *
      * MySQL: UPDATE a INNER JOIN b ON b.id = a.id SET a.col = ? WHERE ...
      * SQLite: UPDATE a SET a.col = ? FROM b WHERE b.id = a.id AND (...)
+     *
+     * @param string $sql
+     * @return string
      */
     protected function rewriteUpdateJoin(string $sql): string
     {
@@ -137,6 +208,9 @@ class SQLite3SQLTranspiler
      *
      * Supports the framework test shape:
      * SHOW KEYS FROM table WHERE "Key_name" = 'PRIMARY'
+     *
+     * @param string $sql
+     * @return string
      */
     protected function rewriteShowKeys(string $sql): string
     {
@@ -151,15 +225,139 @@ class SQLite3SQLTranspiler
 
         $rewritten = sprintf(
             "SELECT name AS \"Column_name\", 'PRIMARY' AS \"Key_name\", pk AS \"Seq_in_index\" "
-            . "FROM pragma_table_info('%s') WHERE pk > 0",
+                . "FROM pragma_table_info('%s') WHERE pk > 0",
             str_replace("'", "''", $table)
         );
 
-        if (!empty($matches['where']) && preg_match('/\b\"?Key_name\"?\s*=\s*\'PRIMARY\'/i', $matches['where'])) {
+        if (!empty($matches['where']) && preg_match('/\b"?Key_name"?\s*=\s*\'PRIMARY\'/i', $matches['where'])) {
             return $rewritten;
         }
 
         return $rewritten;
+    }
+
+    /**
+     * Rewrite MySQL STRAIGHT_JOIN to regular JOIN for SQLite compatibility.
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function rewriteStraightJoin(string $sql): string
+    {
+        $protected = $this->protectStringLiterals($sql);
+        $transformed = preg_replace('/\bSTRAIGHT_JOIN\b/i', 'JOIN', $protected['sql']);
+        return $this->restoreStringLiterals($transformed, $protected['literals']);
+    }
+
+    /**
+     * Rewrite MySQL INSERT ... ON DUPLICATE KEY UPDATE to SQLite UPSERT syntax.
+     *
+     * Uses the first column from the INSERT as the conflict target.
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function rewriteOnDuplicateKeyUpdate(string $sql): string
+    {
+        // Protect string literals in the SQL first
+        $protected = $this->protectStringLiterals($sql);
+
+        $pattern = '/^\s*INSERT\s+INTO\s+(?<table>\S+)\s*\((?<columns>[^)]+)\)\s*'
+            . 'VALUES\s*\((?<values>[^)]+)\)\s*'
+            . 'ON\s+DUPLICATE\s+KEY\s+UPDATE\s+(?<assignments>.+)$/is';
+
+        if (!preg_match($pattern, $protected['sql'], $matches)) {
+            return $sql;
+        }
+
+        $columns = preg_split('/\s*,\s*/', trim($matches['columns']));
+        $firstColumn = trim($columns[0]);
+        $firstColumn = trim($firstColumn, '"\'`[]');
+
+        $rewritten = sprintf(
+            'INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s) DO UPDATE SET %s',
+            trim($matches['table']),
+            trim($matches['columns']),
+            trim($matches['values']),
+            $firstColumn,
+            trim($matches['assignments'])
+        );
+
+        return $this->restoreStringLiterals($rewritten, $protected['literals']);
+    }
+
+    /**
+     * Rewrite MySQL NOW() function to SQLite datetime('now').
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function rewriteNowFunction(string $sql): string
+    {
+        $protected = $this->protectStringLiterals($sql);
+        $transformed = preg_replace('/\bNOW\s*\(\s*\)/i', "datetime('now')", $protected['sql']);
+        return $this->restoreStringLiterals($transformed, $protected['literals']);
+    }
+
+    /**
+     * Rewrite MySQL UNIX_TIMESTAMP() function to SQLite strftime('%s', ...).
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function rewriteUnixTimestamp(string $sql): string
+    {
+        $protected = $this->protectStringLiterals($sql);
+        $transformed = $protected['sql'];
+
+        // Handle UNIX_TIMESTAMP() with no arguments (current time)
+        $transformed = preg_replace('/\bUNIX_TIMESTAMP\s*\(\s*\)/i', "strftime('%s', 'now')", $transformed);
+
+        // Handle UNIX_TIMESTAMP(date) with a date argument
+        $transformed = preg_replace_callback(
+            '/\bUNIX_TIMESTAMP\s*\(([^)]+)\)/i',
+            function (array $matches): string {
+                $arg = trim($matches[1]);
+                return sprintf("strftime('%%s', %s)", $arg);
+            },
+            $transformed
+        );
+
+        return $this->restoreStringLiterals($transformed, $protected['literals']);
+    }
+
+    /**
+     * Rewrite MySQL ORDER BY FIELD() to SQLite CASE expression.
+     *
+     * @param string $sql
+     * @return string
+     */
+    protected function rewriteOrderByField(string $sql): string
+    {
+        return preg_replace_callback(
+            '/ORDER\s+BY\s+FIELD\s*\((?<column>[^,]+),(?<values>[^\)]*)\)/i',
+            function (array $matches): string {
+                $column = trim($matches['column']);
+                $values = preg_split('/\s*,\s*/', trim($matches['values'])) ?: [];
+
+                if (empty($values)) {
+                    return $matches[0];
+                }
+
+                $clauses = [];
+                foreach ($values as $index => $value) {
+                    $clauses[] = sprintf('WHEN %s THEN %d', trim($value), $index);
+                }
+
+                return sprintf(
+                    'ORDER BY CASE %s %s ELSE %d END',
+                    $column,
+                    implode(' ', $clauses),
+                    count($values)
+                );
+            },
+            $sql
+        );
     }
 
     /**

@@ -59,8 +59,27 @@ it might corrupt existing records. In order to perform the action anyway add the
 running dev/build which temporarily adds a conflict clause to the field spec.
 E.g.: http://www.my-project.com/?avoidConflict=1
 
+## MySQL Compatibility
+
+Enable optional MySQL-to-SQLite transpilation for custom queries:
+
+```yaml
+SilverStripe\SQLite\SQLite3SQLTranspiler:
+  enable_mysql_compat: true
+```
+
+Converts MySQL functions to SQLite equivalents:
+
+| MySQL | SQLite |
+|-------|--------|
+| `STRAIGHT_JOIN` | `JOIN` |
+| `ON DUPLICATE KEY UPDATE` | `ON CONFLICT(...) DO UPDATE SET` |
+| `NOW()` | `datetime('now')` |
+| `UNIX_TIMESTAMP()` | `strftime('%s', 'now')` |
+| `UNIX_TIMESTAMP(date)` | `strftime('%s', date)` |
+| `ORDER BY FIELD()` | `ORDER BY CASE ... END` |
+
 ## Open Issues
 
-- SQLite3 is supposed to work with all may not work with certain modules as they are using custom SQL statements
-  passed to the DB class directly ;(
-- there is no real fulltext search yet and the build-in search engine is not ordering by relevance, check out fts3
+- Third-party modules with MySQL-specific SQL may need `enable_mysql_compat` enabled (see above)
+- No fulltext search; built-in search doesn't order by relevance. Check out fts3

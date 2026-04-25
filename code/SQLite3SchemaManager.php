@@ -6,7 +6,6 @@ use Exception;
 use SilverStripe\Control\Director;
 use SilverStripe\Dev\Debug;
 use SilverStripe\ORM\Connect\DBSchemaManager;
-use SilverStripe\ORM\FieldType\DBGenerated;
 use SQLite3;
 
 /**
@@ -465,20 +464,42 @@ class SQLite3SchemaManager extends DBSchemaManager
     }
 
     /**
-     * Builds the internal SQLLite index name given the silverstripe table and index name.
+     * Builds the internal SQLite index name with table prefix.
      *
-     * The name is built using the table and index name in order to prevent name collisions
-     * between indexes of the same name across multiple tables
+     * SQLite stores all indexes in a single namespace per database, so we prefix
+     * index names with the table name to prevent collisions (e.g., "Member_IX_Email").
+     * This is the actual name used in CREATE INDEX and PRAGMA commands.
      *
-     * @param string $tableName
-     * @param string $indexName
-     * @return string The SQLite3 name of the index
+     * @see parseSQLiteIndexName() For the reverse operation
+     * @see indexKey() For the framework-level index identifier
+     *
+     * @param string $tableName The SilverStripe table name
+     * @param string $indexName The SilverStripe index name (e.g., "IX_Email")
+     * @return string The SQLite internal index name (e.g., "Member_IX_Email")
      */
-    protected function buildSQLiteIndexName($tableName, $indexName)
+    protected function buildSQLiteIndexName($tableName, $indexName): string
     {
         return "{$tableName}_{$indexName}";
     }
 
+    /**
+     * Returns the SilverStripe framework identifier for an index.
+     *
+     * This method returns the clean index name without table prefix, matching
+     * how MySQLSchemaManager works. The framework uses this identifier when
+     * tracking indexes (e.g., in indexList() and indexExists() checks).
+     *
+     * The actual SQLite index name includes the table prefix (via buildSQLiteIndexName)
+     * to avoid collisions in SQLite's single-namespace index system.
+     *
+     * @see buildSQLiteIndexName() For the SQLite internal name with table prefix
+     * @see indexList() For how indexes are returned to the framework
+     *
+     * @param string $table The SilverStripe table name
+     * @param string $index The SilverStripe index name (e.g., "IX_Email")
+     * @param array $spec The index specification
+     * @return string The framework-level index identifier (same as $index)
+     */
     public function indexKey($table, $index, $spec)
     {
         return $index;
@@ -497,8 +518,9 @@ class SQLite3SchemaManager extends DBSchemaManager
     {
         $expression = $this->normaliseGeneratedColumnExpression($expression);
         $generationType = strtoupper($generationType);
-        if (!in_array($generationType, [DBGenerated::GENERATION_STORED, DBGenerated::GENERATION_VIRTUAL], true)) {
-            $generationType = DBGenerated::GENERATION_VIRTUAL;
+        // Use string constants instead of DBGenerated class constants for compatibility with SS < 6.1
+        if (!in_array($generationType, ['STORED', 'VIRTUAL'], true)) {
+            $generationType = 'VIRTUAL';
         }
 
         $spec = preg_replace('/\s+DEFAULT\s+(?:\'[^\']*(?:\'\'[^\']*)*\'|[^\s,]+)/i', '', $spec);
@@ -508,6 +530,24 @@ class SQLite3SchemaManager extends DBSchemaManager
         return "$spec GENERATED ALWAYS AS ($expression) $generationType";
     }
 
+    /**
+     * Returns a list of indexes for a table, keyed by framework-level identifiers.
+     *
+     * This method queries SQLite's PRAGMA index_list to get all indexes, then
+     * translates the SQLite internal names (e.g., "Member_IX_Email") back to
+     * SilverStripe framework identifiers (e.g., "IX_Email") using parseSQLiteIndexName().
+     *
+     * The returned array is keyed by the clean index names that match indexKey() values,
+     * allowing the framework to track and manage indexes consistently across
+     * different database backends.
+     *
+     * @see parseSQLiteIndexName() For how SQLite names are translated
+     * @see indexKey() For the framework identifier used as array keys
+     * @see buildSQLiteIndexName() For how SQLite names are constructed
+     *
+     * @param string $table The SilverStripe table name
+     * @return array<string, array> Index definitions keyed by clean index names
+     */
     public function indexList($table)
     {
         $indexList = array();
@@ -549,6 +589,23 @@ class SQLite3SchemaManager extends DBSchemaManager
         return $indexList;
     }
 
+    /**
+     * Parses a SQLite internal index name and returns the SilverStripe index name.
+     *
+     * This reverses the buildSQLiteIndexName() operation by stripping the table
+     * prefix from SQLite index names. This allows indexList() to return indexes
+     * keyed by their framework-level identifiers.
+     *
+     * For example, "Member_IX_Email" is parsed to "IX_Email" for the framework.
+     *
+     * @see buildSQLiteIndexName() For how SQLite names are constructed
+     * @see indexList() Which uses this to normalize index names
+     * @see indexKey() Which returns the clean index identifier used here
+     *
+     * @param string $table The SilverStripe table name
+     * @param string $sqliteName The SQLite internal index name (e.g., "Member_IX_Email")
+     * @return string|null The SilverStripe index name (e.g., "IX_Email"), or null for autoindexes
+     */
     protected function parseSQLiteIndexName(string $table, string $sqliteName): ?string
     {
         if (strpos($sqliteName, 'sqlite_autoindex_') === 0) {

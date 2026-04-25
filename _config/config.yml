@@ -1,0 +1,15 @@
+---
+# Optional MySQL compatibility features for the SQLite3 transpiler.
+# These are disabled by default as they're only needed for custom MySQL queries,
+# not SilverStripe framework operations.
+#
+# SilverStripe\SQLite\SQLite3SQLTranspiler:
+#   enable_mysql_compat: true
+#
+# When enabled, the following additional MySQL-to-SQLite transpilations are active:
+# - STRAIGHT_JOIN → JOIN
+# - ON DUPLICATE KEY UPDATE → ON CONFLICT DO UPDATE SET
+# - NOW() → datetime('now')
+# - UNIX_TIMESTAMP() → strftime('%s', ...)
+Name: sqlite3config
+---

@@ -8,7 +8,6 @@ use SilverStripe\Dev\SapphireTest;
 use SilverStripe\ORM\Connect\GeneratedColumnValueException;
 use SilverStripe\ORM\DataObject;
 use SilverStripe\ORM\DB;
-use SilverStripe\ORM\FieldType\DBGenerated;
 use SilverStripe\Core\Injector\Injector;
 use SilverStripe\View\TemplateEngine;
 use SilverStripe\View\ViewLayerData;
@@ -286,10 +285,15 @@ class SQLite3QueryIteratorTest extends SapphireTest
 
     public function testGeneratedColumnsAreComputedAndRejectManualUpdates()
     {
+        // Skip this test if DBGenerated class doesn't exist (SilverStripe < 6.1)
+        if (!class_exists('SilverStripe\ORM\FieldType\DBGenerated')) {
+            $this->markTestSkipped('DBGenerated class not available in this SilverStripe version');
+        }
+
         $table = 'SQLite3SchemaRegression_GeneratedColumns';
         $generatedFieldSpec = sprintf(
             '%s("Varchar(255)", "CONCAT(\\"BaseField\\", \'_etc\')", "STORED")',
-            DBGenerated::class
+            'SilverStripe\ORM\FieldType\DBGenerated'
         );
 
         DB::get_schema()->schemaUpdate(function () use ($table, $generatedFieldSpec) {
