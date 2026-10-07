@@ -38,3 +38,6 @@ Thumbs.db
 # SilverStripe
 /public/
 /silverstripe-cache/
+
+# Local
+.temp/
