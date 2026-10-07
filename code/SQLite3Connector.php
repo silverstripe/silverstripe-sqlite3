@@ -33,6 +33,30 @@ class SQLite3Connector extends DBConnector
             : new SQLite3($file, SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, $parameters['key']);
         $this->dbConn->busyTimeout(60000);
         $this->databaseName = $parameters['database'];
+        $this->registerMathFunctions();
+    }
+
+    /**
+     * Supply the functions used by geographic queries on builds without SQLITE_ENABLE_MATH_FUNCTIONS.
+     */
+    protected function registerMathFunctions(): void
+    {
+        foreach (['acos' => 'acos', 'sin' => 'sin', 'cos' => 'cos', 'radians' => 'deg2rad'] as $name => $callback) {
+            $statement = @$this->dbConn->prepare("SELECT $name(0)");
+            if ($statement !== false) {
+                $statement->close();
+                continue;
+            }
+
+            $this->dbConn->createFunction($name, static function ($value) use ($callback): ?float {
+                // Match SQLite's NULL handling; PHP receives both SQL text and blobs as strings.
+                if (!is_numeric($value)) {
+                    return null;
+                }
+                $result = $callback((float) $value);
+                return is_finite($result) ? $result : null;
+            }, 1, SQLITE3_DETERMINISTIC);
+        }
     }
 
     public function affectedRows()
