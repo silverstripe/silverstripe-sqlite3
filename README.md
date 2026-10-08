@@ -78,6 +78,15 @@ Converts MySQL functions to SQLite equivalents:
 | `UNIX_TIMESTAMP()` | `strftime('%s', 'now')` |
 | `UNIX_TIMESTAMP(date)` | `strftime('%s', date)` |
 
+## Running tests
+
+Run `composer test-all` to run the module and framework tests against SQLite.
+The PHPUnit bootstrap in `tests/bootstrap.php` applies targeted compatibility fixes
+to installed framework tests before loading them, including older releases selected
+by CI's `--prefer-lowest` job. These backport upstream date/time and YAML assertions
+and explicitly skip a MySQL-only test when using SQLite. They do not change framework
+runtime code. Composer reinstallations are handled by applying the fixes on each run.
+
 ## Open Issues
 
 - Third-party modules with MySQL-specific SQL may need `enable_mysql_compat` enabled (see above)
